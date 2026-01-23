@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Informe del Estado del Arte - Planificador de Tareas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .informe-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .informe-header {
+            text-align: center;
+            padding: 20px;
+            background-color: #2c3e50;
+            color: white;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .informe-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .informe-table th,
+        .informe-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .informe-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+        .informe-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .badge-alerta {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-vencida {
+            background-color: #dc3545;
+            color: white;
+        }
+        .badge-por-vencer {
+            background-color: #ffc107;
+            color: #000;
+        }
+        .print-btn {
+            padding: 10px 20px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .print-btn:hover {
+            background-color: #229954;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📄 Informe del Estado del Arte</h1>
+            <nav>
+                <a href="{{ url_for('index') }}">Inicio</a>
+                <a href="{{ url_for('tablero') }}">Tablero de Control</a>
+                <a href="{{ url_for('informe') }}">Informe</a>
+                <a href="{{ url_for('about') }}">Acerca de</a>
+            </nav>
+        </header>
+        
+        <main>
+            <button class="print-btn" onclick="window.print()">🖨️ Imprimir Informe</button>
+
+            <div class="informe-header">
+                <h1>INFORME DEL ESTADO DEL ARTE</h1>
+                <p>Sistema de Planificación y Gestión de Tareas</p>
+                <p>Fecha del Reporte: {{ fecha_reporte }}</p>
+            </div>
+
+            <!-- Resumen Ejecutivo -->
+            <section class="informe-section">
+                <h2>📊 Resumen Ejecutivo</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total de Tareas</div>
+                        <div class="stat-value">{{ estadisticas.total }}</div>
+                    </div>
+                    <div class="stat-card stat-warning">
+                        <div class="stat-label">Tareas Vencidas</div>
+                        <div class="stat-value">{{ estadisticas.vencidas }}</div>
+                    </div>
+                    <div class="stat-card stat-info">
+                        <div class="stat-label">Por Vencer</div>
+                        <div class="stat-value">{{ estadisticas.por_vencer }}</div>
+                    </div>
+                    <div class="stat-card stat-success">
+                        <div class="stat-label">Completadas</div>
+                        <div class="stat-value">{{ estadisticas.por_estado.get('Completada', 0) }}</div>
+                    </div>
+                    <div class="stat-card stat-primary">
+                        <div class="stat-label">Validadas</div>
+                        <div class="stat-value">{{ estadisticas.por_estado.get('Validada', 0) }}</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Distribución por Estado -->
+            <section class="informe-section">
+                <h2>📈 Distribución por Estado</h2>
+                <table class="informe-table">
+                    <thead>
+                        <tr>
+                            <th>Estado</th>
+                            <th>Cantidad</th>
+                            <th>Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for estado, cantidad in estadisticas.por_estado.items() %}
+                        <tr>
+                            <td><strong>{{ estado }}</strong></td>
+                            <td>{{ cantidad }}</td>
+                            <td>
+                                {% if estadisticas.total > 0 %}
+                                    {{ "%.1f"|format((cantidad / estadisticas.total * 100)) }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Distribución por Responsable -->
+            {% if estadisticas.por_responsable %}
+            <section class="informe-section">
+                <h2>👤 Distribución por Responsable</h2>
+                <table class="informe-table">
+                    <thead>
+                        <tr>
+                            <th>Responsable</th>
+                            <th>Cantidad de Tareas</th>
+                            <th>Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for responsable, cantidad in estadisticas.por_responsable.items() %}
+                        <tr>
+                            <td><strong>{{ responsable }}</strong></td>
+                            <td>{{ cantidad }}</td>
+                            <td>
+                                {% if estadisticas.total > 0 %}
+                                    {{ "%.1f"|format((cantidad / estadisticas.total * 100)) }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+            {% endif %}
+
+            <!-- Distribución por Centro de Responsabilidad -->
+            {% if estadisticas.por_centro %}
+            <section class="informe-section">
+                <h2>🏢 Distribución por Centro de Responsabilidad</h2>
+                <table class="informe-table">
+                    <thead>
+                        <tr>
+                            <th>Centro de Responsabilidad</th>
+                            <th>Cantidad de Tareas</th>
+                            <th>Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for centro, cantidad in estadisticas.por_centro.items() %}
+                        <tr>
+                            <td><strong>{{ centro }}</strong></td>
+                            <td>{{ cantidad }}</td>
+                            <td>
+                                {% if estadisticas.total > 0 %}
+                                    {{ "%.1f"|format((cantidad / estadisticas.total * 100)) }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+            {% endif %}
+
+            <!-- Tareas Vencidas -->
+            {% if tareas_vencidas %}
+            <section class="informe-section">
+                <h2>⚠️ Tareas Vencidas ({{ tareas_vencidas|length }})</h2>
+                <table class="informe-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tarea</th>
+                            <th>Responsable</th>
+                            <th>Centro</th>
+                            <th>Plazo</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tarea in tareas_vencidas %}
+                        <tr>
+                            <td>#{{ tarea.id }}</td>
+                            <td>{{ tarea.texto }}</td>
+                            <td>{{ tarea.responsable or 'Sin asignar' }}</td>
+                            <td>{{ tarea.centro_responsabilidad or 'Sin asignar' }}</td>
+                            <td><span class="badge-alerta badge-vencida">{{ tarea.plazo }}</span></td>
+                            <td>{{ tarea.situacion }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+            {% endif %}
+
+            <!-- Tareas por Vencer -->
+            {% if tareas_por_vencer %}
+            <section class="informe-section">
+                <h2>⏰ Tareas por Vencer (Próximos 7 días) ({{ tareas_por_vencer|length }})</h2>
+                <table class="informe-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tarea</th>
+                            <th>Responsable</th>
+                            <th>Centro</th>
+                            <th>Plazo</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tarea in tareas_por_vencer %}
+                        <tr>
+                            <td>#{{ tarea.id }}</td>
+                            <td>{{ tarea.texto }}</td>
+                            <td>{{ tarea.responsable or 'Sin asignar' }}</td>
+                            <td>{{ tarea.centro_responsabilidad or 'Sin asignar' }}</td>
+                            <td><span class="badge-alerta badge-por-vencer">{{ tarea.plazo }}</span></td>
+                            <td>{{ tarea.situacion }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+            {% endif %}
+
+            <!-- Listado Completo de Tareas -->
+            <section class="informe-section">
+                <h2>📋 Listado Completo de Tareas</h2>
+                <table class="informe-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tarea</th>
+                            <th>Estado</th>
+                            <th>Responsable</th>
+                            <th>Centro</th>
+                            <th>Plazo</th>
+                            <th>Documentos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tarea in tareas %}
+                        <tr>
+                            <td>#{{ tarea.id }}</td>
+                            <td>{{ tarea.texto }}</td>
+                            <td><span class="task-status status-{{ tarea.situacion|lower|replace(' ', '-') }}">{{ tarea.situacion }}</span></td>
+                            <td>{{ tarea.responsable or 'Sin asignar' }}</td>
+                            <td>{{ tarea.centro_responsabilidad or 'Sin asignar' }}</td>
+                            <td>{{ tarea.plazo or 'Sin plazo' }}</td>
+                            <td>{{ tarea.documentos|length }} documento(s)</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Análisis y Recomendaciones -->
+            <section class="informe-section">
+                <h2>💡 Análisis y Recomendaciones</h2>
+                <ul>
+                    {% if estadisticas.vencidas > 0 %}
+                    <li><strong>Atención:</strong> Se detectaron {{ estadisticas.vencidas }} tarea(s) vencida(s) que requieren acción inmediata.</li>
+                    {% endif %}
+                    {% if estadisticas.por_vencer > 0 %}
+                    <li><strong>Alertas:</strong> {{ estadisticas.por_vencer }} tarea(s) están próximas a vencer y deben ser priorizadas.</li>
+                    {% endif %}
+                    {% if estadisticas.por_estado.get('Sin Ejecutar', 0) > 0 %}
+                    <li><strong>Pendientes:</strong> {{ estadisticas.por_estado.get('Sin Ejecutar', 0) }} tarea(s) aún no han sido iniciadas.</li>
+                    {% endif %}
+                    {% if estadisticas.por_estado.get('Completada', 0) > 0 and estadisticas.por_estado.get('Validada', 0) == 0 %}
+                    <li><strong>Validación:</strong> Se recomienda revisar las tareas completadas para su validación.</li>
+                    {% endif %}
+                </ul>
+            </section>
+        </main>
+        
+        <footer>
+            <p>&copy; 2024 Planificador de Tareas - Sistema de Gestión</p>
+            <p>Informe generado el {{ fecha_reporte }}</p>
+        </footer>
+    </div>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

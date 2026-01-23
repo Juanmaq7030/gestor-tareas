@@ -1,0 +1,8 @@
+﻿id,texto,situacion,documentos,responsable,plazo,centro_responsabilidad,observacion,recursos,plazo_date,dias_restantes,vencida,por_vencer,num_documentos
+1,Recopilación de Antecentes y Documentación,Completada,"['1_Pago_contribuciones_cuota_01_parcela_209_1764879391712.pdf', '1_Poder_Simple_Vales-Gas_1764880520401.pdf']",,,,,,,,False,False,2
+2,Chequeo de Antecedentes,En Ejecución,[],Anita Maria,,DAE,,,,,False,False,0
+3,Revisión de Antecedentes,En Ejecución,[],,,,,,,,False,False,0
+4,Elaboración de Tablas y Gráficos,En Ejecución,[],,,,,,,,False,False,0
+5,Revisión de Tablas y Gráficos,Sin Ejecutar,[],Juan Manuel Gallardo,,DAE,,,,,False,False,0
+6,Elaboración de Reporte,En Ejecución,[],,,,,,,,False,False,0
+7,Revisión y Validación de Reporte,Sin Ejecutar,[],Karla Frez,2025-12-05,DAE,,,2025-12-05,-13.0,True,False,0

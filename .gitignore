@@ -1,0 +1,35 @@
+# Carpeta de archivos subidos
+uploads/
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+
+# Archivo de datos (opcional - descomenta si no quieres versionar las tareas)
+# tareas.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Flask
+instance/
+.webassets-cache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+

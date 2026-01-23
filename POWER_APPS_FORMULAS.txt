@@ -1,0 +1,284 @@
+# Fórmulas Power Apps para Gestor de Tareas
+
+## ============================================
+## PANTALLA PRINCIPAL - Galería de Tareas
+## ============================================
+
+### Items de la Galería (con filtros)
+Filter(
+    Tareas,
+    If(
+        !IsBlank(DropdownCentro.Selected.Value),
+        CentroResponsabilidad = DropdownCentro.Selected.Value,
+        true
+    ) &&
+    If(
+        !IsBlank(DropdownResponsable.Selected.Value),
+        Responsable.Email = DropdownResponsable.Selected.Value,
+        true
+    ) &&
+    If(
+        !IsBlank(DropdownEstado.Selected.Value),
+        Situacion = DropdownEstado.Selected.Value,
+        true
+    ) &&
+    If(
+        !IsBlank(DropdownPlazo.Selected.Value),
+        Switch(
+            DropdownPlazo.Selected.Value,
+            "Vencidas", Plazo < Today(),
+            "Por Vencer", Plazo >= Today(),
+            "Sin Plazo", IsBlank(Plazo),
+            true
+        ),
+        true
+    )
+)
+
+### Color de Fondo según Estado
+Switch(
+    ThisItem.Situacion,
+    "Pendiente", RGBA(255, 243, 205, 1),
+    "En Ejecución", RGBA(207, 226, 255, 1),
+    "Terminada", RGBA(213, 244, 230, 1),
+    "Lista Para Validar", RGBA(248, 215, 218, 1),
+    RGBA(236, 240, 241, 1)
+)
+
+### Texto Tachado si está Terminada
+If(
+    ThisItem.Situacion = "Terminada",
+    TextDecoration.Strikethrough,
+    TextDecoration.None
+)
+
+## ============================================
+## ESTADÍSTICAS DEL TABLERO
+## ============================================
+
+### Total de Tareas
+CountRows(Tareas)
+
+### Tareas por Estado
+CountRows(
+    Filter(
+        Tareas,
+        Situacion = "Pendiente"
+    )
+)
+
+### Tareas Vencidas
+CountRows(
+    Filter(
+        Tareas,
+        !IsBlank(Plazo) && Plazo < Today()
+    )
+)
+
+### Tareas por Vencer
+CountRows(
+    Filter(
+        Tareas,
+        !IsBlank(Plazo) && Plazo >= Today()
+    )
+)
+
+### Porcentaje por Estado
+Round(
+    (CountRows(Filter(Tareas, Situacion = "Pendiente")) / CountRows(Tareas)) * 100,
+    1
+) & "%"
+
+## ============================================
+## FORMULARIOS
+## ============================================
+
+### Defaults del Formulario (Nueva Tarea)
+Defaults(Tareas)
+
+### Defaults del Formulario (Editar)
+SelectedItem
+
+### Validación de Campos Requeridos
+If(
+    IsBlank(TextInput_Texto.Text),
+    Notify("El texto de la tarea es requerido", NotificationType.Error),
+    SubmitForm(Form1)
+)
+
+### Guardar Nueva Tarea
+SubmitForm(Form1);
+Navigate(BrowseScreen, ScreenTransition.Fade);
+ResetForm(Form1)
+
+### Actualizar Tarea Existente
+SubmitForm(Form1);
+Navigate(BrowseScreen, ScreenTransition.Fade)
+
+### Cambiar Estado de Tarea
+Patch(
+    Tareas,
+    SelectedItem,
+    {Situacion: DropdownEstado.Selected.Value}
+);
+Refresh(Tareas)
+
+## ============================================
+## FILTROS Y BÚSQUEDA
+## ============================================
+
+### Items del Dropdown de Centros
+Distinct(
+    Tareas,
+    CentroResponsabilidad
+)
+
+### Items del Dropdown de Responsables
+Distinct(
+    Tareas,
+    Responsable.Email
+)
+
+### Items del Dropdown de Estados
+["Pendiente", "En Ejecución", "Terminada", "Lista Para Validar"]
+
+### Items del Dropdown de Plazo
+["Todos", "Vencidas", "Por Vencer", "Sin Plazo"]
+
+### Limpiar Filtros
+Reset(DropdownCentro);
+Reset(DropdownResponsable);
+Reset(DropdownEstado);
+Reset(DropdownPlazo)
+
+## ============================================
+## DOCUMENTOS ADJUNTOS
+## ============================================
+
+### Subir Documento
+AddMedia(
+    AttachmentControl1,
+    {
+        '@odata.type': "#Microsoft.FileServices.File",
+        name: "documento.pdf"
+    }
+)
+
+### Lista de Documentos Adjuntos
+ThisItem.'Documentos adjuntos'
+
+### Contar Documentos
+CountRows(ThisItem.'Documentos adjuntos')
+
+### Descargar Documento
+Launch(ThisItem.'Documentos adjuntos'.Value)
+
+## ============================================
+## COLORES Y ESTILOS
+## ============================================
+
+### Color del Badge de Estado
+Switch(
+    ThisItem.Situacion,
+    "Pendiente", RGBA(255, 193, 7, 1),
+    "En Ejecución", RGBA(13, 110, 253, 1),
+    "Terminada", RGBA(39, 174, 96, 1),
+    "Lista Para Validar", RGBA(220, 53, 69, 1),
+    RGBA(108, 117, 125, 1)
+)
+
+### Color del Texto del Badge
+Switch(
+    ThisItem.Situacion,
+    "Pendiente", RGBA(0, 0, 0, 1),
+    RGBA(255, 255, 255, 1)
+)
+
+## ============================================
+## NAVEGACIÓN
+## ============================================
+
+### Ir a Detalles
+Navigate(DetailScreen, ScreenTransition.Fade, {SelectedItem: ThisItem})
+
+### Ir a Nueva Tarea
+Navigate(NewScreen, ScreenTransition.Fade);
+ResetForm(Form1)
+
+### Ir a Tablero
+Navigate(DashboardScreen, ScreenTransition.Fade)
+
+### Volver a Lista
+Navigate(BrowseScreen, ScreenTransition.Fade)
+
+## ============================================
+## VALIDACIONES
+## ============================================
+
+### Validar que el Plazo no sea pasado (al crear)
+If(
+    DatePicker_Plazo.SelectedDate < Today(),
+    Notify("El plazo no puede ser una fecha pasada", NotificationType.Warning),
+    true
+)
+
+### Mostrar Alerta si Tarea Vencida
+If(
+    !IsBlank(ThisItem.Plazo) && ThisItem.Plazo < Today() && ThisItem.Situacion <> "Terminada",
+    RGBA(220, 53, 69, 0.2),
+    RGBA(255, 255, 255, 1)
+)
+
+## ============================================
+## GRÁFICOS Y VISUALIZACIONES
+## ============================================
+
+### Datos para Gráfico de Barras (Por Estado)
+[
+    {Estado: "Pendiente", Cantidad: CountRows(Filter(Tareas, Situacion = "Pendiente"))},
+    {Estado: "En Ejecución", Cantidad: CountRows(Filter(Tareas, Situacion = "En Ejecución"))},
+    {Estado: "Terminada", Cantidad: CountRows(Filter(Tareas, Situacion = "Terminada"))},
+    {Estado: "Lista Para Validar", Cantidad: CountRows(Filter(Tareas, Situacion = "Lista Para Validar"))}
+]
+
+### Datos para Gráfico Circular (Por Responsable)
+ForAll(
+    Distinct(Tareas, Responsable.Email),
+    {
+        Responsable: Responsable.Email,
+        Cantidad: CountRows(Filter(Tareas, Responsable.Email = Responsable.Email))
+    }
+)
+
+## ============================================
+## NOTIFICACIONES Y MENSAJES
+## ============================================
+
+### Mensaje de Éxito al Guardar
+Notify("Tarea guardada exitosamente", NotificationType.Success, 2000)
+
+### Mensaje de Error
+Notify("Error al guardar la tarea", NotificationType.Error, 3000)
+
+### Confirmar Eliminación
+If(
+    Confirm("¿Está seguro de eliminar esta tarea?"),
+    Remove(Tareas, SelectedItem);
+    Navigate(BrowseScreen, ScreenTransition.Fade);
+    Notify("Tarea eliminada", NotificationType.Success),
+    false
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+

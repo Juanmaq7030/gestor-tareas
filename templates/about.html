@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acerca de - Planificador de Tareas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ℹ️ Acerca de</h1>
+            <nav>
+                <a href="{{ url_for('index') }}">Inicio</a>
+                <a href="{{ url_for('tablero') }}">Tablero de Control</a>
+                <a href="{{ url_for('informe') }}">Informe</a>
+                <a href="{{ url_for('about') }}">Acerca de</a>
+            </nav>
+        </header>
+        
+        <main>
+            <section>
+                <h2>Planificador de Tareas</h2>
+                <p>Sistema completo de planificación y gestión de tareas desarrollado con Flask (Python).</p>
+                
+                <h3>Características Principales</h3>
+                <ul style="line-height: 2;">
+                    <li>✅ <strong>Creación de Tareas:</strong> Crea y gestiona tareas con descripción completa</li>
+                    <li>👤 <strong>Asignación de Responsables:</strong> Asigna personas responsables a cada tarea</li>
+                    <li>🏢 <strong>Centros de Responsabilidad:</strong> Organiza tareas por centros de responsabilidad</li>
+                    <li>📅 <strong>Gestión de Plazos:</strong> Define y controla plazos de entrega</li>
+                    <li>📎 <strong>Medios de Verificación:</strong> Adjunta documentos y archivos de soporte</li>
+                    <li>💼 <strong>Recursos:</strong> Especifica recursos necesarios para cada tarea</li>
+                    <li>📝 <strong>Observaciones:</strong> Añade observaciones y notas adicionales</li>
+                    <li>🔄 <strong>Estados de Tareas:</strong> Controla el estado (Sin Ejecutar, En Ejecución, Pendiente de, Completada, Validada)</li>
+                    <li>📊 <strong>Tablero de Control:</strong> Visualiza estadísticas con gráficos y tablas</li>
+                    <li>📧 <strong>Alertas por Correo:</strong> Recibe notificaciones de tareas por vencer</li>
+                    <li>📄 <strong>Informes:</strong> Genera informes completos del estado del arte</li>
+                </ul>
+                
+                <h3>Estados de Tareas</h3>
+                <ul style="line-height: 2;">
+                    <li><span class="task-status status-sin-ejecutar">Sin Ejecutar</span> - Tarea aún no iniciada</li>
+                    <li><span class="task-status status-en-ejecución">En Ejecución</span> - Tarea en progreso</li>
+                    <li><span class="task-status status-pendiente-de">Pendiente de</span> - Esperando validación o aprobación</li>
+                    <li><span class="task-status status-completada">Completada</span> - Tarea finalizada</li>
+                    <li><span class="task-status status-validada">Validada</span> - Tarea verificada y aprobada</li>
+                </ul>
+                
+                <h3>Tecnologías Utilizadas</h3>
+                <ul style="line-height: 2;">
+                    <li><strong>Backend:</strong> Python 3, Flask</li>
+                    <li><strong>Frontend:</strong> HTML5, CSS3, JavaScript</li>
+                    <li><strong>Gráficos:</strong> Chart.js</li>
+                    <li><strong>Persistencia:</strong> JSON</li>
+                    <li><strong>Notificaciones:</strong> SMTP (correo electrónico)</li>
+                </ul>
+                
+                <h3>Configuración de Alertas por Correo</h3>
+                <p>Para activar las alertas por correo electrónico, configura las siguientes variables de entorno:</p>
+                <pre style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto;">
+EMAIL_HOST=smtp.tu_proveedor.com
+EMAIL_PORT=587
+EMAIL_USER=tu_correo@dominio.com
+EMAIL_PASSWORD=tu_contraseña
+EMAIL_FROM=tu_correo@dominio.com
+EMAIL_TO=destinatario@dominio.com
+                </pre>
+                <p><strong>Nota:</strong> Las alertas se verifican automáticamente cada 60 minutos para tareas que vencen en los próximos 2 días.</p>
+            </section>
+        </main>
+        
+        <footer>
+            <p>&copy; 2024 Planificador de Tareas - Sistema de Gestión</p>
+        </footer>
+    </div>
+</body>
+</html>

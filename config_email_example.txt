@@ -1,0 +1,60 @@
+# ============================================
+# CONFIGURACIÓN DE ALERTAS POR CORREO
+# ============================================
+# 
+# Para activar las alertas por correo electrónico,
+# configura estas variables de entorno antes de ejecutar la aplicación.
+#
+# Ejemplo en Windows PowerShell:
+#   $env:EMAIL_HOST = "smtp.gmail.com"
+#   $env:EMAIL_PORT = "587"
+#   $env:EMAIL_USER = "tu_correo@gmail.com"
+#   $env:EMAIL_PASSWORD = "tu_contraseña"
+#   $env:EMAIL_FROM = "tu_correo@gmail.com"
+#   $env:EMAIL_TO = "destinatario@dominio.com"
+#   python app.py
+#
+# Ejemplo en Linux/Mac:
+#   export EMAIL_HOST="smtp.gmail.com"
+#   export EMAIL_PORT="587"
+#   export EMAIL_USER="tu_correo@gmail.com"
+#   export EMAIL_PASSWORD="tu_contraseña"
+#   export EMAIL_FROM="tu_correo@gmail.com"
+#   export EMAIL_TO="destinatario@dominio.com"
+#   python app.py
+#
+# ============================================
+# PROVEEDORES COMUNES DE CORREO:
+# ============================================
+#
+# Gmail:
+#   EMAIL_HOST=smtp.gmail.com
+#   EMAIL_PORT=587
+#
+# Outlook/Hotmail:
+#   EMAIL_HOST=smtp-mail.outlook.com
+#   EMAIL_PORT=587
+#
+# Yahoo:
+#   EMAIL_HOST=smtp.mail.yahoo.com
+#   EMAIL_PORT=587
+#
+# ============================================
+# NOTAS IMPORTANTES:
+# ============================================
+# - Las alertas se verifican automáticamente cada 60 minutos
+# - Solo se envían alertas para tareas que vencen en los próximos 2 días
+# - Solo se alertan tareas que NO estén en estado "Completada" o "Validada"
+# - Si no configuras las variables de entorno, la aplicación funcionará
+#   normalmente pero no enviará correos
+# ============================================
+
+
+
+
+
+
+
+
+
+

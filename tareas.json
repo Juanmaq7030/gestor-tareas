@@ -1,0 +1,85 @@
+{
+  "tareas": [
+    {
+      "id": 1,
+      "texto": "Recopilación de Antecentes y Documentación",
+      "situacion": "Completada",
+      "documentos": [
+        "1_Pago_contribuciones_cuota_01_parcela_209_1764879391712.pdf",
+        "1_Poder_Simple_Vales-Gas_1764880520401.pdf"
+      ],
+      "responsable": "",
+      "plazo": "",
+      "centro_responsabilidad": "",
+      "observacion": "",
+      "recursos": ""
+    },
+    {
+      "id": 2,
+      "texto": "Chequeo de Antecedentes",
+      "situacion": "En Ejecución",
+      "documentos": [],
+      "responsable": "Anita Maria",
+      "plazo": "",
+      "centro_responsabilidad": "DAE",
+      "observacion": "",
+      "recursos": ""
+    },
+    {
+      "id": 3,
+      "texto": "Revisión de Antecedentes",
+      "situacion": "En Ejecución",
+      "documentos": [],
+      "responsable": "",
+      "plazo": "",
+      "centro_responsabilidad": "",
+      "observacion": "",
+      "recursos": ""
+    },
+    {
+      "id": 4,
+      "texto": "Elaboración de Tablas y Gráficos",
+      "situacion": "En Ejecución",
+      "documentos": [],
+      "responsable": "",
+      "plazo": "",
+      "centro_responsabilidad": "",
+      "observacion": "",
+      "recursos": ""
+    },
+    {
+      "id": 5,
+      "texto": "Revisión de Tablas y Gráficos",
+      "situacion": "Sin Ejecutar",
+      "documentos": [],
+      "responsable": "Juan Manuel Gallardo",
+      "plazo": "",
+      "centro_responsabilidad": "DAE",
+      "observacion": "",
+      "recursos": ""
+    },
+    {
+      "id": 6,
+      "texto": "Elaboración de Reporte",
+      "situacion": "En Ejecución",
+      "documentos": [],
+      "responsable": "",
+      "plazo": "",
+      "centro_responsabilidad": "",
+      "observacion": "",
+      "recursos": ""
+    },
+    {
+      "id": 7,
+      "texto": "Revisión y Validación de Reporte",
+      "situacion": "Sin Ejecutar",
+      "documentos": [],
+      "responsable": "Karla Frez",
+      "plazo": "2025-12-05",
+      "centro_responsabilidad": "DAE",
+      "observacion": "",
+      "recursos": ""
+    }
+  ],
+  "contador_id": 8
+}
