@@ -1,5 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, make_response, jsonify
 import os
+import psycopg2
+import psycopg2.extras
+
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, make_response, jsonify
 import time
 import json
 from datetime import datetime, timedelta
@@ -8,6 +11,12 @@ from functools import wraps
 import smtplib
 from email.message import EmailMessage
 import threading
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+conn = psycopg2.connect(DATABASE_URL)
+conn.autocommit = True
+
 
 app = Flask(__name__)
 
