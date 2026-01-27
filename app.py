@@ -40,107 +40,30 @@ app = Flask(__name__)
 # ================= CONFIGURACIÓN =================
 
 UPLOAD_FOLDER = 'uploads'
-DATA_FILE = 'tareas.json'
-
-ALLOWED_EXTENSIONS = {
-    'pdf', 'png', 'jpg', 'jpeg', 'gif',
-    'doc', 'docx', 'xls', 'xlsx', 'txt'
-}
-
-# Estados actualizados según requerimientos
-ESTADOS = [
-    'Sin Ejecutar',
-    'En Ejecución',
-    'Pendiente de',
-    'Completada',
-    'Validada'
-]
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-tareas = []
-contador_id = 1
-
-# ================= UTILIDADES =================
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def obtener_todas_las_tareas():
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT * FROM tareas ORDER BY id DESC")
+        return cur.fetchall()
 
 
-def guardar_tareas():
-    global tareas, contador_id
-    try:
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump({
-                'tareas': tareas,
-                'contador_id': contador_id
-            }, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"Error al guardar tareas: {e}")
+def insertar_tarea(titulo, descripcion, responsable, proyecto, fecha_vencimiento):
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO tareas (titulo, descripcion, estado, fecha_creacion, fecha_vencimiento, responsable, proyecto)
+            VALUES (%s, %s, 'Sin Ejecutar', NOW(), %s, %s, %s)
+        """, (titulo, descripcion, fecha_vencimiento, responsable, proyecto))
 
 
-def cargar_tareas():
-    global tareas, contador_id
-    try:
-        if os.path.exists(DATA_FILE):
-            with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                tareas = data.get('tareas', [])
-                contador_id = data.get('contador_id', 1)
-                if tareas:
-                    max_id = max(t.get('id', 0) for t in tareas)
-                    contador_id = max(contador_id, max_id + 1)
-        normalizar_tareas()
-    except Exception as e:
-        print(f"Error al cargar tareas: {e}")
-        tareas = []
-        contador_id = 1
+def cambiar_estado(id, estado):
+    with conn.cursor() as cur:
+        cur.execute("UPDATE tareas SET estado=%s WHERE id=%s", (estado, id))
 
 
-def no_cache(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        response = make_response(f(*args, **kwargs))
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response
-    return wrapper
+def obtener_tarea(id):
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT * FROM tareas WHERE id=%s", (id,))
+        return cur.fetchone()
 
-
-def normalizar_tareas():
-    """Normaliza las tareas antiguas al nuevo formato"""
-    global tareas
-    cambios = False
-    for t in tareas:
-        # Migrar estados antiguos a nuevos
-        estado_antiguo = t.get('situacion', 'Pendiente')
-        if estado_antiguo == 'Pendiente':
-            t['situacion'] = 'Sin Ejecutar'
-            cambios = True
-        elif estado_antiguo == 'Terminada':
-            t['situacion'] = 'Completada'
-            cambios = True
-        elif estado_antiguo == 'Lista Para Validar':
-            t['situacion'] = 'Pendiente de'
-            cambios = True
-        elif estado_antiguo not in ESTADOS:
-            t['situacion'] = 'Sin Ejecutar'
-            cambios = True
-        
-        # Asegurar que todos los campos existan
-        t.setdefault('responsable', '')
-        t.setdefault('centro_responsabilidad', '')
-        t.setdefault('plazo', '')
-        t.setdefault('documentos', [])
-        t.setdefault('observacion', '')
-        t.setdefault('recursos', '')
-    
-    if cambios:
-        guardar_tareas()
 
 # ================= LÓGICA DE TAREAS =================
 
