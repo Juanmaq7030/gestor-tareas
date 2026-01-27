@@ -17,6 +17,23 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 conn = psycopg2.connect(DATABASE_URL)
 conn.autocommit = True
 
+def init_db():
+    with conn.cursor() as cur:
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS tareas (
+            id SERIAL PRIMARY KEY,
+            titulo TEXT,
+            descripcion TEXT,
+            estado TEXT,
+            fecha_creacion TIMESTAMP,
+            fecha_vencimiento TIMESTAMP,
+            responsable TEXT,
+            proyecto TEXT
+        );
+        """)
+    print("Base de datos lista")
+
+init_db()
 
 app = Flask(__name__)
 
