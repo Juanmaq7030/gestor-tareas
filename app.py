@@ -82,3 +82,6 @@ def admin_dashboard():
 init_db()
 CREATE TABLE tareas ...
 
+Fix auth system and database structure
+
+
