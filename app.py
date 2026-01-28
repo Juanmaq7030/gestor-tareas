@@ -1,4 +1,3 @@
-# ARCHIVO app.py CORREGIDO
 import os
 import psycopg2
 import psycopg2.extras
@@ -33,7 +32,6 @@ def validar_usuario(username, password):
         """, (username, password))
         return cur.fetchone()
 
-# Login
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -52,36 +50,24 @@ def login():
                 return redirect(url_for("admin_dashboard"))
             else:
                 return redirect(url_for("dashboard"))
-
         else:
             flash("Credenciales incorrectas")
 
     return render_template("login.html")
 
-    # Logout
-    @app.route("/logout")
+@app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
 
-# Dashboard Empresa
 @app.route("/")
 @login_required
 def dashboard():
     return render_template("dashboard.html")
 
-# SuperAdmin
 @app.route("/admin")
 @login_required
 def admin_dashboard():
     if session["rol"] != "superadmin":
         return redirect(url_for("dashboard"))
-
     return render_template("admin_dashboard.html")
-
-init_db()
-CREATE TABLE tareas ...
-
-Fix auth system and database structure
-
-
