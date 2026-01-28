@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Plataforma Digital Comunal</title>
+    <style>
+        body {
+            background:#f0f2f5;
+            font-family: Arial;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+        }
+        .login {
+            background:white;
+            padding:30px;
+            width:300px;
+            border-radius:10px;
+            box-shadow:0 0 10px rgba(0,0,0,.1);
+        }
+        h2 { text-align:center; }
+        input {
+            width:100%;
+            padding:10px;
+            margin:10px 0;
+        }
+        button {
+            width:100%;
+            padding:10px;
+            background:#007bff;
+            border:none;
+            color:white;
+            font-size:16px;
+        }
+        .error {
+            color:red;
+            text-align:center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login">
+    <h2>Ingreso</h2>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="error">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+        <input name="username" placeholder="Usuario" required>
+        <input type="password" name="password" placeholder="Contraseña" required>
+        <button>Entrar</button>
+    </form>
+</div>
+
+</body>
+</html>
