@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Super Administrador</title>
+    <style>
+        body { font-family: Arial; margin:40px; }
+        .menu { width:220px; float:left; }
+        .menu a { display:block; padding:10px; background:#222; color:white; text-decoration:none; margin-bottom:5px; }
+        .content { margin-left:240px; }
+    </style>
+</head>
+<body>
+
+<div class="menu">
+    <a href="/admin">⚙️ Configuración</a>
+    <a href="#">🏢 Empresas</a>
+    <a href="#">👥 Usuarios</a>
+    <a href="#">📁 Proyectos</a>
+    <a href="/logout">🚪 Cerrar sesión</a>
+</div>
+
+<div class="content">
+    <h2>Super Administrador</h2>
+    <p>Bienvenido {{ session["nombre"] }}</p>
+
+    <p>Desde aquí podrás:</p>
+    <ul>
+        <li>Crear empresas</li>
+        <li>Asignar usuarios</li>
+        <li>Definir proyectos</li>
+        <li>Administrar la plataforma</li>
+    </ul>
+</div>
+
+</body>
+</html>
