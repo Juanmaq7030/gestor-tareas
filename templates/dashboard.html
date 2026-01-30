@@ -1,28 +1,68 @@
-<!DOCTYPE html>
-<html>
+<<!DOCTYPE html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
     <title>Dashboard</title>
+
+    <!-- CSS desde Flask -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+    <style>
+        body {
+            background: #f4f6f9;
+            font-family: Arial, Helvetica, sans-serif;
+            padding: 30px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0px 3px 10px rgba(0,0,0,0.05);
+        }
+        .header {
+            margin-bottom: 30px;
+        }
+        .project {
+            border-left: 5px solid #0d6efd;
+            padding-left: 15px;
+        }
+        .logout {
+            display: inline-block;
+            margin-top: 30px;
+            color: #dc3545;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .logout:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
+
+<div class="header">
     <h1>Bienvenido {{ session.nombre }}</h1>
-    <h3>Panel de control de tu empresa</h3>
+    <p>Panel de control de tu empresa</p>
+</div>
 
-    <h2>Proyectos</h2>
+<h2>📁 Proyectos</h2>
 
-    {% if proyectos %}
-        <ul>
-        {% for p in proyectos %}
-            <li>
-                <strong>{{ p.nombre }}</strong><br>
-                {{ p.descripcion }}
-            </li>
-        {% endfor %}
-        </ul>
-    {% else %}
+{% if proyectos %}
+    {% for p in proyectos %}
+        <div class="card project">
+            <h4>{{ p.nombre }}</h4>
+            <p>{{ p.descripcion }}</p>
+        </div>
+    {% endfor %}
+{% else %}
+    <div class="card">
         <p>No hay proyectos creados aún.</p>
-    {% endif %}
+    </div>
+{% endif %}
 
-    <br>
-    <a href="/logout">Cerrar sesión</a>
+<a class="logout" href="/logout">Cerrar sesión</a>
+
 </body>
 </html>
