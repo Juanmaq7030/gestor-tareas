@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Panel de Empresa</title>
+    <style>
+        body { font-family: Arial; margin:40px; }
+        .menu { width:200px; float:left; }
+        .menu a { display:block; padding:10px; text-decoration:none; background:#eee; margin-bottom:5px; }
+        .content { margin-left:220px; }
+    </style>
+</head>
+<body>
+
+<div class="menu">
+    <a href="/">🏠 Inicio</a>
+    <a href="#">📁 Proyectos</a>
+    <a href="#">✅ Tareas</a>
+    <a href="#">📊 Informes</a>
+    <a href="/logout">🚪 Cerrar sesión</a>
+</div>
+
+<div class="content">
+    <h2>Bienvenido {{ session["nombre"] }}</h2>
+    <p>Panel de control de tu empresa.</p>
+
+    <p>Aquí irán:</p>
+    <ul>
+        <li>Proyectos</li>
+        <li>Avance de tareas</li>
+        <li>Filtros por estado</li>
+    </ul>
+</div>
+
+</body>
+</html>

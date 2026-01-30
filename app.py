@@ -35,41 +35,10 @@ def validar_usuario(username, password):
               AND activo = true
         """, (username, password))
         return cur.fetchone()
-
 # -------------------------
 # LOGIN
 # -------------------------
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        user = validar_usuario(
-            request.form["username"],
-            request.form["password"]
-        )
-
-        if user:
-            session["user_id"] = user["id"]
-            session["empresa_id"] = user["empresa_id"]
-            session["rol"] = user["rol"]
-            session["nombre"] = user["nombre"]
-            return redirect("/")
-
-        flash("Credenciales incorrectas")
-
-    return render_template("login.html")
-
-# -------------------------
-# LOGOUT
-# -------------------------
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/login")
-
-# -------------------------
-# DASHBOARD (PROYECTOS)
-# -------------------------
-@app.route("/")
+@app.route("/", methods=["GET"])
 @login_required
 def dashboard():
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -84,6 +53,16 @@ def dashboard():
 
     return render_template("dashboard.html", proyectos=proyectos)
 
+
+# -------------------------
+# LOGOUT
+# -------------------------
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
+
+
 # -------------------------
 # ADMIN DESACTIVADO
 # -------------------------
@@ -91,3 +70,7 @@ def dashboard():
 @login_required
 def admin():
     return redirect("/")
+
+    @app.route("/")
+def dashboard():
+    
