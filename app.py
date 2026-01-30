@@ -4,7 +4,17 @@ import psycopg2.extras
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from functools import wraps
 
-app = Flask(__name__)
+# -------------------------
+# RUTAS ABSOLUTAS PARA RENDER
+# -------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
+
 app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
