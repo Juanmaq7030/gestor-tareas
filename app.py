@@ -8,8 +8,14 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-conn = psycopg2.connect(DATABASE_URL)
-conn.autocommit = True
+
+# -------------------------
+# CONEXIÓN A POSTGRES (RENDER)
+# -------------------------
+def get_conn():
+    conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+    conn.autocommit = True
+    return conn
 
 # -------------------------
 # LOGIN REQUIRED
@@ -26,7 +32,7 @@ def login_required(f):
 # AUTH
 # -------------------------
 def validar_usuario(username, password):
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+    with get_conn().cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute("""
             SELECT id, empresa_id, nombre, rol
             FROM usuarios
@@ -72,7 +78,7 @@ def logout():
 @app.route("/")
 @login_required
 def dashboard():
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+    with get_conn().cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute("""
             SELECT id, nombre, descripcion
             FROM proyectos
@@ -85,7 +91,7 @@ def dashboard():
     return render_template("dashboard.html", proyectos=proyectos)
 
 # -------------------------
-# ADMIN DESACTIVADO (por ahora)
+# ADMIN DESACTIVADO
 # -------------------------
 @app.route("/admin")
 @login_required
