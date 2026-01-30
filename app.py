@@ -39,28 +39,20 @@ def validar_usuario(username, password):
 # -------------------------
 # LOGIN
 # -------------------------
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        user = validar_usuario(
-            request.form["username"],
-            request.form["password"]
-        )
+@app.route("/")
+@login_required
+def dashboard():
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("""
+            SELECT id, nombre, descripcion
+            FROM proyectos
+            WHERE empresa_id = %s
+              AND activo = true
+            ORDER BY fecha_creacion DESC
+        """, (session["empresa_id"],))
+        proyectos = cur.fetchall()
 
-        if user:
-            session["user_id"] = user["id"]
-            session["empresa_id"] = user["empresa_id"]
-            session["rol"] = user["rol"]
-            session["nombre"] = user["nombre"]
-
-            if user["rol"] == "superadmin":
-                return redirect("/admin")
-            return redirect("/")
-
-        flash("Credenciales incorrectas")
-
-    return render_template("login.html")
-
+    return render_template("dashboard.html", proyectos=proyectos)
 # -------------------------
 # LOGOUT
 # -------------------------
