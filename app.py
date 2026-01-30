@@ -38,7 +38,7 @@ def validar_usuario(username, password):
 # -------------------------
 # LOGIN
 # -------------------------
-@app.route("/", methods=["GET"])
+@app.route("/")
 @login_required
 def dashboard():
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -49,6 +49,7 @@ def dashboard():
               AND activo = true
             ORDER BY fecha_creacion DESC
         """, (session["empresa_id"],))
+
         proyectos = cur.fetchall()
 
     return render_template("dashboard.html", proyectos=proyectos)
