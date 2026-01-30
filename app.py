@@ -35,8 +35,39 @@ def validar_usuario(username, password):
               AND activo = true
         """, (username, password))
         return cur.fetchone()
+
 # -------------------------
 # LOGIN
+# -------------------------
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        user = validar_usuario(username, password)
+
+        if user:
+            session["user_id"] = user["id"]
+            session["empresa_id"] = user["empresa_id"]
+            session["nombre"] = user["nombre"]
+            session["rol"] = user["rol"]
+            return redirect("/")
+        else:
+            flash("Usuario o contraseña incorrectos")
+
+    return render_template("login.html")
+
+# -------------------------
+# LOGOUT
+# -------------------------
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
+
+# -------------------------
+# DASHBOARD
 # -------------------------
 @app.route("/")
 @login_required
@@ -49,29 +80,14 @@ def dashboard():
               AND activo = true
             ORDER BY fecha_creacion DESC
         """, (session["empresa_id"],))
-
         proyectos = cur.fetchall()
 
     return render_template("dashboard.html", proyectos=proyectos)
 
-
 # -------------------------
-# LOGOUT
-# -------------------------
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/login")
-
-
-# -------------------------
-# ADMIN DESACTIVADO
+# ADMIN DESACTIVADO (por ahora)
 # -------------------------
 @app.route("/admin")
 @login_required
 def admin():
     return redirect("/")
-
-    @app.route("/")
-def dashboard():
-    
