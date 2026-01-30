@@ -75,6 +75,4 @@ def dashboard():
 @app.route("/admin")
 @login_required
 def admin():
-    if session["rol"] != "superadmin":
-        return redirect("/")
-    return render_template("admin_dashboard.html")
+    return redirect("/")
