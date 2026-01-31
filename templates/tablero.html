@@ -15,18 +15,22 @@
         <header>
             <h1>📊 Tablero de Control</h1>
             <nav>
-                <a href="{{ url_for('index') }}">Inicio</a>
-                <a href="{{ url_for('tablero') }}">Tablero de Control</a>
-                <a href="{{ url_for('informe') }}">Informe</a>
+                <a href="{{ url_for('proyecto_index', proyecto_id=proyecto_id) }}">Inicio</a>
+                <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">Tablero de Control</a>
+                <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
                 <a href="{{ url_for('about') }}">Acerca de</a>
+                <span style="float:right">
+                    <a href="{{ url_for('empresa_dashboard') }}">🏢 Empresa</a>
+                    <a href="{{ url_for('logout') }}">Salir</a>
+                </span>
             </nav>
         </header>
-        
+
         <main>
             <!-- Filtros -->
             <section class="filters-section">
                 <h2>Filtros</h2>
-                <form method="GET" action="{{ url_for('tablero') }}" class="filters-form">
+                <form method="GET" action="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}" class="filters-form">
                     <div class="filter-row">
                         <div class="filter-group">
                             <label for="centro">Centro de Responsabilidad:</label>
@@ -37,7 +41,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        
+
                         <div class="filter-group">
                             <label for="responsable">Responsable:</label>
                             <select name="responsable" id="responsable" class="filter-select">
@@ -47,7 +51,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        
+
                         <div class="filter-group">
                             <label for="estado">Estado:</label>
                             <select name="estado" id="estado" class="filter-select">
@@ -57,7 +61,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        
+
                         <div class="filter-group">
                             <label for="plazo">Plazo:</label>
                             <select name="plazo" id="plazo" class="filter-select">
@@ -67,10 +71,10 @@
                                 <option value="sin_plazo" {% if filtros.plazo == 'sin_plazo' %}selected{% endif %}>Sin Plazo</option>
                             </select>
                         </div>
-                        
+
                         <div class="filter-actions">
                             <button type="submit" class="btn-filter">Aplicar Filtros</button>
-                            <a href="{{ url_for('tablero') }}" class="btn-clear">Limpiar</a>
+                            <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}" class="btn-clear">Limpiar</a>
                         </div>
                     </div>
                 </form>
@@ -113,14 +117,14 @@
                     <h2>Distribución por Estado</h2>
                     <canvas id="chartEstado"></canvas>
                 </div>
-                
+
                 {% if estadisticas.por_responsable %}
                 <div class="chart-container">
                     <h2>Distribución por Responsable</h2>
                     <canvas id="chartResponsable"></canvas>
                 </div>
                 {% endif %}
-                
+
                 {% if estadisticas.por_centro %}
                 <div class="chart-container">
                     <h2>Distribución por Centro de Responsabilidad</h2>
@@ -163,7 +167,7 @@
             </section>
             {% endif %}
 
-            <!-- Estadísticas por Centro de Responsabilidad -->
+            <!-- Estadísticas por Centro -->
             {% if estadisticas.por_centro %}
             <section class="stats-section">
                 <h2>Distribución por Centro de Responsabilidad</h2>
@@ -195,7 +199,7 @@
                                     {{ tarea.situacion }}
                                 </span>
                             </div>
-                            
+
                             <div class="task-info">
                                 <div class="info-item">
                                     <strong>Responsable:</strong>
@@ -218,7 +222,7 @@
                 {% endif %}
             </section>
         </main>
-        
+
         <footer>
             <p>&copy; 2024 Planificador de Tareas - Sistema de Gestión</p>
         </footer>
@@ -273,17 +277,10 @@
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
-                        legend: {
-                            display: false
-                        }
+                        legend: { display: false }
                     },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
                     }
                 }
             });
@@ -305,18 +302,9 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
+                    plugins: { legend: { display: false } },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
                     }
                 }
             });
