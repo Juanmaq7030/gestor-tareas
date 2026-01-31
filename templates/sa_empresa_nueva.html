@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nueva Empresa</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f4f6f8;padding:20px}
+    .container{max-width:900px;margin:auto;background:#fff;padding:20px;border-radius:10px}
+    .msg{padding:10px;border-radius:8px;margin:10px 0}
+    .error{background:#ffe5e5;border:1px solid #ffb3b3}
+    .ok{background:#e7fff0;border:1px solid #b7f2cc}
+    label{font-weight:700}
+    input{padding:8px;width:320px;max-width:100%}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>➕ Crear Nueva Empresa</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="msg {{ 'error' if cat=='error' else 'ok' }}">
+            <strong>{{ cat }}:</strong> {{ msg }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="">
+      <p>
+        <label>Nombre Empresa</label><br>
+        <input name="nombre_empresa" required>
+      </p>
+
+      <p>
+        <label>Nombre Proyecto</label><br>
+        <input name="nombre_proyecto" value="Proyecto 1">
+      </p>
+
+      <h3>Supervisor</h3>
+      <p>
+        <label>Correo Supervisor</label><br>
+        <input name="correo_supervisor" type="email" required>
+      </p>
+      <p>
+        <label>Contraseña Supervisor</label><br>
+        <input name="pass_supervisor" type="password" required>
+      </p>
+
+      <h3>Ejecutor</h3>
+      <p>
+        <label>Correo Ejecutor</label><br>
+        <input name="correo_ejecutor" type="email" required>
+      </p>
+      <p>
+        <label>Contraseña Ejecutor</label><br>
+        <input name="pass_ejecutor" type="password" required>
+      </p>
+
+      <h3>📦 Licencia (opcional)</h3>
+      <p>
+        <label>Máx. Usuarios</label><br>
+        <input name="licencia_max_usuarios" type="number" min="1" value="5">
+      </p>
+      <p>
+        <label>Máx. Proyectos</label><br>
+        <input name="licencia_max_proyectos" type="number" min="1" value="1">
+      </p>
+
+      <button type="submit">Crear Empresa</button>
+    </form>
+
+    <p>
+      <a href="{{ url_for('sa_dashboard') }}">← Volver</a> |
+      <a href="{{ url_for('logout') }}">Salir</a>
+    </p>
+  </div>
+</body>
+</html>
