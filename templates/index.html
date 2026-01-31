@@ -1,45 +1,245 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Gestor de Tareas</title>
-<style>
-body { font-family: Arial; background:#f4f6f8; padding:20px }
-.container { max-width:900px; margin:auto; background:white; padding:20px; border-radius:10px }
-h1 { text-align:center }
-form { margin-bottom:20px }
-input, select { padding:8px; margin:5px }
-button { padding:10px 15px; background:#2c7be5; color:white; border:none; border-radius:5px }
-.task { border-bottom:1px solid #ddd; padding:10px }
-.estado { font-weight:bold }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Planificador de Tareas</title>
+
+  <!-- Mantiene tu look & feel del proyecto PRO -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  <!-- Estilos extra mínimos (no pisan tu style.css; solo refuerzan layout si tu css no los trae) -->
+  <style>
+    .top-actions { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .top-actions .right { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .user-pill { color:#666; font-size:14px; }
+    .card { background:#fff; border-radius:10px; padding:14px; margin:12px 0; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .grid-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; }
+    @media (max-width: 860px){ .grid, .grid-3 { grid-template-columns: 1fr; } }
+    .task-row { border-top:1px solid #eee; padding-top:12px; margin-top:12px; }
+    .task-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+    .task-title { font-weight:700; }
+    .task-meta { color:#666; font-size:13px; }
+    .badge { display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:700; }
+    .badge.sin-ejecutar { background:#fff3cd; color:#856404; }
+    .badge.en-ejecucion { background:#cfe2ff; color:#084298; }
+    .badge.pendiente-de { background:#ffe5d0; color:#8a4b12; }
+    .badge.completada { background:#d1e7dd; color:#0f5132; }
+    .badge.validada { background:#e2d9f3; color:#3b1b79; }
+    .btn { padding:10px 14px; border:none; border-radius:8px; cursor:pointer; background:#2c7be5; color:white; font-weight:700; }
+    .btn.secondary { background:#6c757d; }
+    .btn.small { padding:8px 10px; font-size:13px; border-radius:7px; }
+    input, select, textarea { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; }
+    textarea { min-height: 80px; resize: vertical; }
+    .files { margin-top:8px; }
+    .files a { text-decoration:none; }
+    .files ul { margin:6px 0 0 18px; }
+    .hint { color:#777; font-size:12px; }
+    header nav a { margin-right:10px; }
+  </style>
 </head>
+
 <body>
+  <div class="container">
 
-<div class="container">
-<h1>📋 Gestor de Tareas</h1>
+    <header>
+      <div class="top-actions">
+        <div>
+          <h1 style="margin:0;">📋 Planificador de Tareas</h1>
+          <div class="hint">Proyecto #{{ proyecto_id }}</div>
+        </div>
 
-<form method="POST" action="/agregar">
-    <input type="text" name="titulo" placeholder="Título" required>
-    <input type="text" name="responsable" placeholder="Responsable">
-    <input type="text" name="proyecto" placeholder="Proyecto / Objetivo">
-    <button>Agregar</button>
-</form>
+        <div class="right">
+          <span class="user-pill">{{ user.nombre }} ({{ user.rol }})</span>
+          <a class="btn small secondary" href="{{ url_for('empresa_dashboard') }}">🏢 Empresa</a>
+          <a class="btn small" href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">📊 Tablero</a>
+          <a class="btn small" href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">📄 Informe</a>
+          <a class="btn small secondary" href="{{ url_for('about') }}">ℹ️ Acerca de</a>
+          {% if user and user.rol == 'superadmin' %}
+            <a class="btn small secondary" href="{{ url_for('sa_dashboard') }}">🛠 Superadmin</a>
+          {% endif %}
+          <a class="btn small secondary" href="{{ url_for('logout') }}">Salir</a>
+        </div>
+      </div>
 
-{% for t in tareas %}
-<div class="task">
-    <b>#{{t.id}}</b> {{t.titulo}}  
-    <span class="estado">[{{t.estado}}]</span><br>
-    Responsable: {{t.responsable or "—"}} | Proyecto: {{t.proyecto or "—"}}
+      <nav style="margin-top:10px;">
+        <a href="{{ url_for('proyecto_index', proyecto_id=proyecto_id) }}">Inicio</a>
+        <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">Tablero</a>
+        <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
+        <a href="{{ url_for('about') }}">Acerca de</a>
+      </nav>
+    </header>
 
-    <br>
-    <a href="/estado/{{t.id}}/Sin Ejecutar">⏹</a>
-    <a href="/estado/{{t.id}}/En Ejecución">▶</a>
-    <a href="/estado/{{t.id}}/Completada">✔</a>
-</div>
-{% endfor %}
+    <!-- CREAR TAREA -->
+    <section class="card">
+      <h2 style="margin-top:0;">➕ Crear nueva tarea</h2>
 
-</div>
+      <form method="POST" action="{{ url_for('proyecto_agregar', proyecto_id=proyecto_id) }}">
+        <div class="grid">
+          <div>
+            <label><strong>Tarea</strong></label>
+            <input type="text" name="texto" placeholder="Describe la tarea..." required>
+          </div>
+          <div>
+            <label><strong>Responsable</strong></label>
+            <input type="text" name="responsable" placeholder="Nombre del responsable">
+          </div>
+        </div>
 
+        <div class="grid-3">
+          <div>
+            <label><strong>Centro de Responsabilidad</strong></label>
+            <input type="text" name="centro_responsabilidad" placeholder="Ej: TI / Operaciones / Finanzas">
+          </div>
+          <div>
+            <label><strong>Plazo</strong></label>
+            <input type="date" name="plazo">
+          </div>
+          <div>
+            <label><strong>Recursos</strong></label>
+            <input type="text" name="recursos" placeholder="Ej: presupuesto, equipo, software, etc.">
+          </div>
+        </div>
+
+        <div>
+          <label><strong>Observación</strong></label>
+          <textarea name="observacion" placeholder="Notas u observaciones..."></textarea>
+        </div>
+
+        <div style="margin-top:10px;">
+          <button class="btn" type="submit">Agregar tarea</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- LISTADO DE TAREAS -->
+    <section class="card">
+      <h2 style="margin-top:0;">🗂 Tareas ({{ tareas|length }})</h2>
+
+      {% if not tareas %}
+        <p class="hint">Aún no hay tareas en este proyecto.</p>
+      {% endif %}
+
+      {% for tarea in tareas %}
+        {% set estado_css = tarea.situacion|lower|replace(' ', '-') %}
+        <div class="task-row">
+
+          <div class="task-head">
+            <div>
+              <div class="task-title">#{{ tarea.id }} — {{ tarea.texto }}</div>
+              <div class="task-meta">
+                Responsable: <strong>{{ tarea.responsable or 'Sin asignar' }}</strong> |
+                Centro: <strong>{{ tarea.centro_responsabilidad or 'Sin asignar' }}</strong> |
+                Plazo: <strong>{{ tarea.plazo or 'Sin plazo' }}</strong>
+              </div>
+            </div>
+
+            <div>
+              <span class="badge {{ estado_css }}">{{ tarea.situacion }}</span>
+            </div>
+          </div>
+
+          <!-- CAMBIAR ESTADO -->
+          <form method="POST" action="{{ url_for('proyecto_cambiar_estado', proyecto_id=proyecto_id, tid=tarea.id) }}" style="margin-top:10px;">
+            <div class="grid-3">
+              <div>
+                <label class="hint"><strong>Estado</strong></label>
+                <select name="situacion">
+                  {% for estado in estados %}
+                    <option value="{{ estado }}" {% if tarea.situacion == estado %}selected{% endif %}>
+                      {{ estado }}
+                    </option>
+                  {% endfor %}
+                </select>
+                <div class="hint">
+                  * “Validada” solo la puede dejar un Supervisor (si un Ejecutor intenta, el backend lo bloquea).
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:end;">
+                <button class="btn small" type="submit">Guardar estado</button>
+              </div>
+
+              <div></div>
+            </div>
+          </form>
+
+          <!-- ACTUALIZAR DATOS DE TAREA -->
+          <form method="POST" action="{{ url_for('proyecto_actualizar_tarea', proyecto_id=proyecto_id, tid=tarea.id) }}" style="margin-top:10px;">
+            <div class="grid-3">
+              <div>
+                <label class="hint"><strong>Responsable</strong></label>
+                <input type="text" name="responsable" value="{{ tarea.responsable }}">
+              </div>
+              <div>
+                <label class="hint"><strong>Centro de Responsabilidad</strong></label>
+                <input type="text" name="centro_responsabilidad" value="{{ tarea.centro_responsabilidad }}">
+              </div>
+              <div>
+                <label class="hint"><strong>Plazo</strong></label>
+                <input type="date" name="plazo" value="{{ tarea.plazo }}">
+              </div>
+            </div>
+
+            <div class="grid">
+              <div>
+                <label class="hint"><strong>Recursos</strong></label>
+                <input type="text" name="recursos" value="{{ tarea.recursos }}">
+              </div>
+              <div>
+                <label class="hint"><strong>Observación</strong></label>
+                <textarea name="observacion">{{ tarea.observacion }}</textarea>
+              </div>
+            </div>
+
+            <div style="margin-top:10px;">
+              <button class="btn small secondary" type="submit">Actualizar tarea</button>
+            </div>
+          </form>
+
+          <!-- ADJUNTAR DOCUMENTOS -->
+          <div class="files">
+            <form method="POST" enctype="multipart/form-data" action="{{ url_for('proyecto_adjuntar', proyecto_id=proyecto_id, tid=tarea.id) }}">
+              <div class="grid">
+                <div>
+                  <label class="hint"><strong>Adjuntar documento</strong></label>
+                  <input type="file" name="documento" required>
+                  <div class="hint">Formatos: PDF, imágenes, Word, Excel, TXT.</div>
+                </div>
+                <div style="display:flex; align-items:end;">
+                  <button class="btn small" type="submit">Subir</button>
+                </div>
+              </div>
+            </form>
+
+            {% if tarea.documentos and tarea.documentos|length > 0 %}
+              <div class="hint" style="margin-top:8px;"><strong>Documentos ({{ tarea.documentos|length }})</strong></div>
+              <ul>
+                {% for doc in tarea.documentos %}
+                  <li>
+                    <a href="{{ url_for('uploads', filename=doc) }}" target="_blank" rel="noopener">
+                      📎 {{ doc }}
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="hint" style="margin-top:8px;">Sin documentos adjuntos.</div>
+            {% endif %}
+          </div>
+
+        </div>
+      {% endfor %}
+    </section>
+
+    <footer style="margin:20px 0; color:#777; text-align:center;">
+      <p>&copy; 2024 Planificador de Tareas - Sistema de Gestión</p>
+    </footer>
+
+  </div>
 </body>
 </html>
