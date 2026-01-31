@@ -1,4 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, make_response, jsonify, session, flash, abort
+from flask import (
+    Flask, render_template, request, redirect, url_for,
+    send_from_directory, make_response, jsonify, session, flash, abort
+)
 import os
 import time
 import json
@@ -7,18 +10,21 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
+# ================= APP =================
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "CAMBIA-ESTO-EN-RENDER")
 
-# ================= CONFIGURACIÓN =================
-UPLOAD_FOLDER = 'uploads'
-DATA_DIR = 'data'
-ALLOWED_EXTENSIONS = {'pdf','png','jpg','jpeg','gif','doc','docx','xls','xlsx','txt'}
+# ================= RUTAS ABSOLUTAS (CRÍTICO PARA RENDER) =================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 
-ESTADOS = ['Sin Ejecutar','En Ejecución','Pendiente de','Completada','Validada']
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# ================= CONFIGURACIÓN =================
+ALLOWED_EXTENSIONS = {'pdf','png','jpg','jpeg','gif','doc','docx','xls','xlsx','txt'}
+ESTADOS = ['Sin Ejecutar','En Ejecución','Pendiente de','Completada','Validada']
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
@@ -35,6 +41,7 @@ def _read_json(path, default):
         return json.load(f)
 
 def _write_json(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -52,6 +59,15 @@ def usuarios_data():
 
 def tareas_file(proyecto_id: int):
     return os.path.join(DATA_DIR, f"tareas_{int(proyecto_id)}.json")
+
+def ensure_core_files():
+    """Asegura que existan los JSON base (evita 500 por archivos faltantes)."""
+    if not os.path.exists(EMPRESAS_FILE):
+        _write_json(EMPRESAS_FILE, {"empresas": []})
+    if not os.path.exists(PROYECTOS_FILE):
+        _write_json(PROYECTOS_FILE, {"proyectos": []})
+    if not os.path.exists(USUARIOS_FILE):
+        _write_json(USUARIOS_FILE, {"usuarios": []})
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -72,7 +88,7 @@ def current_user():
     if not uid:
         return None
     users = usuarios_data()["usuarios"]
-    return next((u for u in users if u["id"] == uid), None)
+    return next((u for u in users if u.get("id") == uid), None)
 
 def login_required(f):
     @wraps(f)
@@ -96,13 +112,13 @@ def require_roles(*roles):
     return deco
 
 def user_can_access_project(u, proyecto_id: int) -> bool:
-    if u["rol"] == "superadmin":
+    if u.get("rol") == "superadmin":
         return True
     proyectos = proyectos_data()["proyectos"]
-    p = next((p for p in proyectos if p["id"] == int(proyecto_id)), None)
+    p = next((p for p in proyectos if p.get("id") == int(proyecto_id)), None)
     if not p:
         return False
-    return p["empresa_id"] == u.get("empresa_id")
+    return p.get("empresa_id") == u.get("empresa_id")
 
 def require_project_access(f):
     @wraps(f)
@@ -170,11 +186,11 @@ def agregar_tarea(proyecto_id, texto, responsable, centro, plazo, observacion, r
     return tarea
 
 def cambiar_estado(proyecto_id, tid, estado, user):
-    if estado == "Validada" and user["rol"] not in ("supervisor", "superadmin"):
+    if estado == "Validada" and user.get("rol") not in ("supervisor", "superadmin"):
         return False
     tareas, contador_id = load_tareas(proyecto_id)
     for t in tareas:
-        if t["id"] == tid and estado in ESTADOS:
+        if t.get("id") == tid and estado in ESTADOS:
             t["situacion"] = estado
             save_tareas(proyecto_id, tareas, contador_id)
             return True
@@ -183,7 +199,7 @@ def cambiar_estado(proyecto_id, tid, estado, user):
 def actualizar_tarea(proyecto_id, tid, responsable=None, centro=None, plazo=None, observacion=None, recursos=None):
     tareas, contador_id = load_tareas(proyecto_id)
     for t in tareas:
-        if t['id'] == tid:
+        if t.get('id') == tid:
             if responsable is not None: t['responsable'] = responsable.strip()
             if centro is not None: t['centro_responsabilidad'] = centro.strip()
             if plazo is not None: t['plazo'] = plazo.strip()
@@ -196,7 +212,7 @@ def actualizar_tarea(proyecto_id, tid, responsable=None, centro=None, plazo=None
 def agregar_documento(proyecto_id, tid, filename):
     tareas, contador_id = load_tareas(proyecto_id)
     for t in tareas:
-        if t['id'] == tid:
+        if t.get('id') == tid:
             if filename not in t['documentos']:
                 t['documentos'].append(filename)
                 save_tareas(proyecto_id, tareas, contador_id)
@@ -290,27 +306,68 @@ def filtrar_tareas(tareas, centro=None, responsable=None, estado=None, plazo=Non
 
     return tareas_filtradas
 
-# ================= SEED SUPERADMIN =================
+# ================= SEED/RESET SUPERADMIN =================
 def ensure_superadmin():
+    """
+    Crea o actualiza el superadmin usando variables de entorno:
+    - ADMIN_EMAIL (default admin@tuapp.cl)
+    - ADMIN_PASSWORD (default Admin123!)
+    - ADMIN_FORCE_RESET=1 para forzar cambio de contraseña/correo
+    """
+    ensure_core_files()
+
+    admin_email = (os.getenv("ADMIN_EMAIL", "admin@tuapp.cl") or "admin@tuapp.cl").strip().lower()
+    admin_password = os.getenv("ADMIN_PASSWORD", "Admin123!")
+    force_reset = os.getenv("ADMIN_FORCE_RESET", "0") == "1"
+
     ud = usuarios_data()
     users = ud["usuarios"]
-    if any(u.get("rol") == "superadmin" for u in users):
+
+    # buscar por correo
+    by_email = next((u for u in users if (u.get("correo","").strip().lower() == admin_email)), None)
+    if by_email:
+        by_email["rol"] = "superadmin"
+        by_email["empresa_id"] = None
+        if force_reset:
+            by_email["password_hash"] = generate_password_hash(admin_password)
+        ud["usuarios"] = users
+        _write_json(USUARIOS_FILE, ud)
+        print(f"✅ Superadmin OK (existente): {admin_email} | reset={force_reset}")
         return
+
+    # buscar cualquier superadmin
+    existing_super = next((u for u in users if u.get("rol") == "superadmin"), None)
+    if existing_super:
+        if force_reset:
+            existing_super["correo"] = admin_email
+            existing_super["password_hash"] = generate_password_hash(admin_password)
+            existing_super["empresa_id"] = None
+            existing_super["rol"] = "superadmin"
+            ud["usuarios"] = users
+            _write_json(USUARIOS_FILE, ud)
+            print(f"✅ Superadmin actualizado: {admin_email}")
+        else:
+            print("ℹ️ Ya existe un superadmin. Usa ADMIN_FORCE_RESET=1 si quieres resetearlo.")
+        return
+
+    # crear desde cero
     uid = _next_id(users)
     users.append({
         "id": uid,
         "nombre": "Super Admin",
-        "correo": "admin@tuapp.cl",
-        "password_hash": generate_password_hash("Admin123!"),
+        "correo": admin_email,
+        "password_hash": generate_password_hash(admin_password),
         "rol": "superadmin",
         "empresa_id": None
     })
     ud["usuarios"] = users
     _write_json(USUARIOS_FILE, ud)
-    print("✅ Superadmin creado: admin@tuapp.cl / Admin123! (cámbialo)")
+    print(f"✅ Superadmin creado: {admin_email} (cámbialo)")
 
 # ================= CREACIÓN EMPRESA/PROYECTO/USUARIOS =================
 def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_sup, pass_sup, correo_eje, pass_eje, max_users=5, max_proys=1):
+    ensure_core_files()
+
     ed = empresas_data()
     empresas = ed["empresas"]
     empresa_id = _next_id(empresas)
@@ -336,15 +393,14 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
     pd["proyectos"] = proyectos
     _write_json(PROYECTOS_FILE, pd)
 
-    # init tareas del proyecto
     save_tareas(proyecto_id, [], 1)
 
     ud = usuarios_data()
     users = ud["usuarios"]
 
-    if any(u["correo"].lower() == correo_sup.lower() for u in users):
+    if any((u.get("correo","").lower() == correo_sup.lower()) for u in users):
         raise ValueError("Correo supervisor ya existe")
-    if any(u["correo"].lower() == correo_eje.lower() for u in users):
+    if any((u.get("correo","").lower() == correo_eje.lower()) for u in users):
         raise ValueError("Correo ejecutor ya existe")
 
     sup_id = _next_id(users)
@@ -376,20 +432,25 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
 @app.route("/login", methods=["GET", "POST"])
 @no_cache
 def login():
-    ensure_superadmin()
     if request.method == "POST":
-        correo = (request.form.get("correo") or "").strip().lower()
+        # A prueba de plantillas antiguas:
+        ident = (request.form.get("correo") or request.form.get("username") or request.form.get("usuario") or "").strip().lower()
         password = request.form.get("password") or ""
+
         users = usuarios_data()["usuarios"]
-        u = next((x for x in users if x["correo"].lower() == correo), None)
-        if not u or not check_password_hash(u["password_hash"], password):
+        u = next((x for x in users if (x.get("correo","").strip().lower() == ident)), None)
+
+        if not u or not check_password_hash(u.get("password_hash",""), password):
             flash("Credenciales inválidas", "error")
-            return render_template("login.html")
+            return render_template("login.html"), 200
+
         session["user_id"] = u["id"]
-        if u["rol"] == "superadmin":
+
+        if u.get("rol") == "superadmin":
             return redirect(url_for("sa_dashboard"))
         return redirect(url_for("empresa_dashboard"))
-    return render_template("login.html")
+
+    return render_template("login.html"), 200
 
 @app.route("/logout")
 def logout():
@@ -401,7 +462,7 @@ def root():
     u = current_user()
     if not u:
         return redirect(url_for("login"))
-    if u["rol"] == "superadmin":
+    if u.get("rol") == "superadmin":
         return redirect(url_for("sa_dashboard"))
     return redirect(url_for("empresa_dashboard"))
 
@@ -415,8 +476,8 @@ def sa_dashboard():
     usuarios = usuarios_data()["usuarios"]
     resumen = []
     for e in empresas:
-        proys = [p for p in proyectos if p["empresa_id"] == e["id"]]
-        users = [u for u in usuarios if u.get("empresa_id") == e["id"]]
+        proys = [p for p in proyectos if p.get("empresa_id") == e.get("id")]
+        users = [u for u in usuarios if u.get("empresa_id") == e.get("id")]
         resumen.append({"empresa": e, "n_proyectos": len(proys), "n_usuarios": len(users)})
     return render_template("sa_dashboard.html", resumen=resumen)
 
@@ -439,7 +500,12 @@ def sa_empresa_nueva():
             return render_template("sa_empresa_nueva.html")
 
         try:
-            crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_sup, pass_sup, correo_eje, pass_eje, max_users, max_proys)
+            crear_empresa_con_proyecto_y_roles(
+                nombre_empresa, nombre_proyecto,
+                correo_sup, pass_sup,
+                correo_eje, pass_eje,
+                max_users, max_proys
+            )
             flash("Empresa creada con proyecto y roles (Supervisor/Ejecutor).", "ok")
             return redirect(url_for("sa_dashboard"))
         except Exception as e:
@@ -458,14 +524,14 @@ def empresa_dashboard():
     empresas = empresas_data()["empresas"]
     proyectos = proyectos_data()["proyectos"]
 
-    empresa = next((e for e in empresas if e["id"] == u["empresa_id"]), None)
-    proys = [p for p in proyectos if p["empresa_id"] == u["empresa_id"]]
+    empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
+    proys = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id")]
 
     avances = []
     for p in proys:
-        tareas, _ = load_tareas(p["id"])
+        tareas, _ = load_tareas(p.get("id"))
         est = obtener_estadisticas(tareas)
-        # avance simple: (completadas + validadas) / total
+
         total = est["total"]
         comp = est["por_estado"].get("Completada", 0)
         val = est["por_estado"].get("Validada", 0)
@@ -589,7 +655,7 @@ def proyecto_tablero(proyecto_id):
         user=current_user()
     )
 
-# ================= PROYECTO: INFORME (usa tu informe.html actual) =================
+# ================= PROYECTO: INFORME =================
 @app.route("/p/<int:proyecto_id>/informe")
 @login_required
 @require_project_access
@@ -631,7 +697,8 @@ def proyecto_informe(proyecto_id):
 def about():
     return render_template("about.html")
 
+# ================= INIT (se ejecuta 1 vez al importar app.py) =================
+ensure_superadmin()
 
 if __name__ == "__main__":
-    ensure_superadmin()
     app.run(debug=True, host="0.0.0.0", port=5000)
