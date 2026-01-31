@@ -40,10 +40,17 @@ def _read_json(path, default):
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def _write_json(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+ef _read_json(path, default):
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
+            if not content:
+                return default
+            return json.loads(content)
+    except Exception:
+        return default
 
 def _next_id(items):
     return (max([int(x.get("id", 0)) for x in items]) + 1) if items else 1
