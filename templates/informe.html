@@ -77,13 +77,17 @@
         <header>
             <h1>📄 Informe del Estado del Arte</h1>
             <nav>
-                <a href="{{ url_for('index') }}">Inicio</a>
-                <a href="{{ url_for('tablero') }}">Tablero de Control</a>
-                <a href="{{ url_for('informe') }}">Informe</a>
+                <a href="{{ url_for('proyecto_index', proyecto_id=proyecto_id) }}">Inicio</a>
+                <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">Tablero de Control</a>
+                <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
                 <a href="{{ url_for('about') }}">Acerca de</a>
+                <span style="float:right">
+                    <a href="{{ url_for('empresa_dashboard') }}">🏢 Empresa</a>
+                    <a href="{{ url_for('logout') }}">Salir</a>
+                </span>
             </nav>
         </header>
-        
+
         <main>
             <button class="print-btn" onclick="window.print()">🖨️ Imprimir Informe</button>
 
@@ -323,7 +327,7 @@
                 </ul>
             </section>
         </main>
-        
+
         <footer>
             <p>&copy; 2024 Planificador de Tareas - Sistema de Gestión</p>
             <p>Informe generado el {{ fecha_reporte }}</p>
@@ -331,13 +335,3 @@
     </div>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
