@@ -40,7 +40,7 @@ def _read_json(path, default):
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-ef _read_json(path, default):
+def _read_json(path, default):
     if not os.path.exists(path):
         return default
     try:
