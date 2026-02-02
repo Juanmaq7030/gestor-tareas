@@ -486,7 +486,7 @@ def sa_dashboard():
         proys = [p for p in proyectos if p.get("empresa_id") == e.get("id")]
         users = [u for u in usuarios if u.get("empresa_id") == e.get("id")]
         resumen.append({"empresa": e, "n_proyectos": len(proys), "n_usuarios": len(users)})
-    return render_template("sa_dashboard.html", resumen=resumen)
+    return render_template("admin_dashboard.html", resumen=resumen)
 
 @app.route("/sa/empresa/nueva", methods=["GET", "POST"])
 @login_required
