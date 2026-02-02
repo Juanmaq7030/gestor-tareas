@@ -35,12 +35,7 @@ USUARIOS_FILE  = os.path.join(DATA_DIR, "usuarios.json")
 
 # ================= UTILIDADES JSON =================
 def _read_json(path, default):
-    if not os.path.exists(path):
-        return default
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-def _read_json(path, default):
+    """Lee JSON de forma robusta. Si no existe / está vacío / está corrupto, devuelve default."""
     if not os.path.exists(path):
         return default
     try:
@@ -51,6 +46,12 @@ def _read_json(path, default):
             return json.loads(content)
     except Exception:
         return default
+
+def _write_json(path, data):
+    """Escribe JSON asegurando la carpeta."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 def _next_id(items):
     return (max([int(x.get("id", 0)) for x in items]) + 1) if items else 1
@@ -330,7 +331,6 @@ def ensure_superadmin():
     ud = usuarios_data()
     users = ud["usuarios"]
 
-    # buscar por correo
     by_email = next((u for u in users if (u.get("correo","").strip().lower() == admin_email)), None)
     if by_email:
         by_email["rol"] = "superadmin"
@@ -342,7 +342,6 @@ def ensure_superadmin():
         print(f"✅ Superadmin OK (existente): {admin_email} | reset={force_reset}")
         return
 
-    # buscar cualquier superadmin
     existing_super = next((u for u in users if u.get("rol") == "superadmin"), None)
     if existing_super:
         if force_reset:
@@ -357,7 +356,6 @@ def ensure_superadmin():
             print("ℹ️ Ya existe un superadmin. Usa ADMIN_FORCE_RESET=1 si quieres resetearlo.")
         return
 
-    # crear desde cero
     uid = _next_id(users)
     users.append({
         "id": uid,
@@ -440,7 +438,6 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
 @no_cache
 def login():
     if request.method == "POST":
-        # A prueba de plantillas antiguas:
         ident = (request.form.get("correo") or request.form.get("username") or request.form.get("usuario") or "").strip().lower()
         password = request.form.get("password") or ""
 
@@ -495,12 +492,22 @@ def sa_empresa_nueva():
     if request.method == "POST":
         nombre_empresa = (request.form.get("nombre_empresa") or "").strip()
         nombre_proyecto = (request.form.get("nombre_proyecto") or "Proyecto 1").strip()
+
         correo_sup = (request.form.get("correo_supervisor") or "").strip()
         pass_sup = request.form.get("pass_supervisor") or ""
+
         correo_eje = (request.form.get("correo_ejecutor") or "").strip()
         pass_eje = request.form.get("pass_ejecutor") or ""
-        max_users = int(request.form.get("licencia_max_usuarios") or 5)
-        max_proys = int(request.form.get("licencia_max_proyectos") or 1)
+
+        # robustez para int()
+        try:
+            max_users = int(request.form.get("licencia_max_usuarios") or 5)
+        except ValueError:
+            max_users = 5
+        try:
+            max_proys = int(request.form.get("licencia_max_proyectos") or 1)
+        except ValueError:
+            max_proys = 1
 
         if not (nombre_empresa and correo_sup and pass_sup and correo_eje and pass_eje):
             flash("Faltan datos", "error")
