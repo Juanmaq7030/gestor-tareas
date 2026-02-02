@@ -1,36 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Super Administrador</title>
-    <style>
-        body { font-family: Arial; margin:40px; }
-        .menu { width:220px; float:left; }
-        .menu a { display:block; padding:10px; background:#222; color:white; text-decoration:none; margin-bottom:5px; }
-        .content { margin-left:240px; }
-    </style>
+  <meta charset="utf-8" />
+  <title>Super Administrador</title>
+  <style>
+    body { font-family: Arial; margin: 40px; }
+    .menu { width: 220px; float: left; }
+    .menu a { display: block; padding: 10px; background: #222; color: white; text-decoration: none; margin-bottom: 5px; border-radius: 6px; }
+    .menu a:hover { background: #444; }
+    .content { margin-left: 240px; }
+  </style>
 </head>
 <body>
 
-<div class="menu">
-    <a href="/admin">⚙️ Configuración</a>
-    <a href="#">🏢 Empresas</a>
-    <a href="#">👥 Usuarios</a>
-    <a href="#">📁 Proyectos</a>
-    <a href="/logout">🚪 Cerrar sesión</a>
-</div>
+  <div class="menu">
+    <a href="{{ url_for('sa_dashboard') }}">🏠 Inicio</a>
+    <a href="{{ url_for('sa_config') }}">⚙️ Configuración</a>
+    <a href="{{ url_for('sa_empresas') }}">🏢 Empresas</a>
+    <a href="{{ url_for('sa_usuarios') }}">👤 Usuarios</a>
+    <a href="{{ url_for('sa_proyectos') }}">📁 Proyectos</a>
+    <a href="{{ url_for('sa_empresa_nueva') }}">➕ Nueva Empresa</a>
+    <a href="{{ url_for('logout') }}">🚪 Cerrar sesión</a>
+  </div>
 
-<div class="content">
+  <div class="content">
     <h2>Super Administrador</h2>
-    <p>Bienvenido {{ session["nombre"] }}</p>
 
-    <p>Desde aquí podrás:</p>
+    {# ✅ Esto evita error si no existe session["nombre"] #}
+    <p>Bienvenido {{ session.get("nombre", "Administrador") }}</p>
+
+    <h3>Resumen</h3>
+    {% if resumen and resumen|length > 0 %}
+      <table border="1" cellpadding="6" cellspacing="0">
+        <tr>
+          <th>Empresa</th>
+          <th># Proyectos</th>
+          <th># Usuarios</th>
+        </tr>
+        {% for r in resumen %}
+        <tr>
+          <td>{{ r.empresa.nombre }}</td>
+          <td>{{ r.n_proyectos }}</td>
+          <td>{{ r.n_usuarios }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p>No hay empresas registradas todavía. Crea una en “Nueva Empresa”.</p>
+    {% endif %}
+
+    <h3>Acciones</h3>
     <ul>
-        <li>Crear empresas</li>
-        <li>Asignar usuarios</li>
-        <li>Definir proyectos</li>
-        <li>Administrar la plataforma</li>
+      <li>Crear empresas</li>
+      <li>Asignar usuarios</li>
+      <li>Definir proyectos</li>
+      <li>Administrar la plataforma</li>
     </ul>
-</div>
+  </div>
 
 </body>
 </html>
