@@ -27,7 +27,7 @@
     <h2>Super Administrador</h2>
 
     {# ✅ Esto evita error si no existe session["nombre"] #}
-    <p>Bienvenido {{ session.get("nombre", "Administrador") }}</p>
+    <p>Bienvenido {{ (user.nombre if user else "Administrador") }}</p>
 
     <h3>Resumen</h3>
     {% if resumen and resumen|length > 0 %}
