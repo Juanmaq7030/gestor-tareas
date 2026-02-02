@@ -485,6 +485,50 @@ def sa_dashboard():
         resumen.append({"empresa": e, "n_proyectos": len(proys), "n_usuarios": len(users)})
     return render_template("admin_dashboard.html", resumen=resumen)
 
+# ================= SUPERADMIN: SECCIONES =================
+@app.route("/sa/config")
+@login_required
+@require_roles("superadmin")
+def sa_config():
+    # Valores actuales (puedes mejorar esto después)
+    return render_template(
+        "sa_config.html",
+        data_dir=DATA_DIR,
+        empresas_file=EMPRESAS_FILE,
+        proyectos_file=PROYECTOS_FILE,
+        usuarios_file=USUARIOS_FILE
+    )
+
+@app.route("/sa/empresas")
+@login_required
+@require_roles("superadmin")
+def sa_empresas():
+    empresas = empresas_data()["empresas"]
+    return render_template("sa_empresas.html", empresas=empresas)
+
+@app.route("/sa/usuarios")
+@login_required
+@require_roles("superadmin")
+def sa_usuarios():
+    usuarios = usuarios_data()["usuarios"]
+    empresas = empresas_data()["empresas"]
+    # Mapa id->nombre para mostrar empresa en tabla
+    emp_map = {e.get("id"): e.get("nombre") for e in empresas}
+    for u in usuarios:
+        u["empresa_nombre"] = emp_map.get(u.get("empresa_id"), "-")
+    return render_template("sa_usuarios.html", usuarios=usuarios)
+
+@app.route("/sa/proyectos")
+@login_required
+@require_roles("superadmin")
+def sa_proyectos():
+    proyectos = proyectos_data()["proyectos"]
+    empresas = empresas_data()["empresas"]
+    emp_map = {e.get("id"): e.get("nombre") for e in empresas}
+    for p in proyectos:
+        p["empresa_nombre"] = emp_map.get(p.get("empresa_id"), "-")
+    return render_template("sa_proyectos.html", proyectos=proyectos)
+
 @app.route("/sa/empresa/nueva", methods=["GET", "POST"])
 @login_required
 @require_roles("superadmin")
