@@ -35,7 +35,7 @@ USUARIOS_FILE  = os.path.join(DATA_DIR, "usuarios.json")
 
 # ================= UTILIDADES JSON =================
 def _read_json(path, default):
-    """Lee JSON de forma robusta. Si no existe / está vacío / está corrupto, devuelve default."""
+    """Lee JSON robusto. Si no existe / está vacío / corrupto => default."""
     if not os.path.exists(path):
         return default
     try:
@@ -48,7 +48,7 @@ def _read_json(path, default):
         return default
 
 def _write_json(path, data):
-    """Escribe JSON asegurando la carpeta."""
+    """Escribe JSON asegurando carpeta."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -68,8 +68,15 @@ def usuarios_data():
 def tareas_file(proyecto_id: int):
     return os.path.join(DATA_DIR, f"tareas_{int(proyecto_id)}.json")
 
+def _safe_remove(path: str):
+    try:
+        if path and os.path.exists(path):
+            os.remove(path)
+    except Exception:
+        pass
+
 def ensure_core_files():
-    """Asegura que existan los JSON base (evita 500 por archivos faltantes)."""
+    """Asegura JSON base (evita 500 por archivos faltantes)."""
     if not os.path.exists(EMPRESAS_FILE):
         _write_json(EMPRESAS_FILE, {"empresas": []})
     if not os.path.exists(PROYECTOS_FILE):
@@ -448,7 +455,11 @@ def login():
             flash("Credenciales inválidas", "error")
             return render_template("login.html"), 200
 
+        # ✅ SESIÓN COMPLETA (clave para que todo el flujo sea estable)
         session["user_id"] = u["id"]
+        session["nombre"] = u.get("nombre") or u.get("correo") or "Usuario"
+        session["rol"] = u.get("rol")
+        session["empresa_id"] = u.get("empresa_id")
 
         if u.get("rol") == "superadmin":
             return redirect(url_for("sa_dashboard"))
@@ -490,7 +501,6 @@ def sa_dashboard():
 @login_required
 @require_roles("superadmin")
 def sa_config():
-    # Valores actuales (puedes mejorar esto después)
     return render_template(
         "sa_config.html",
         data_dir=DATA_DIR,
@@ -512,11 +522,13 @@ def sa_empresas():
 def sa_usuarios():
     usuarios = usuarios_data()["usuarios"]
     empresas = empresas_data()["empresas"]
-    # Mapa id->nombre para mostrar empresa en tabla
     emp_map = {e.get("id"): e.get("nombre") for e in empresas}
+    usuarios_out = []
     for u in usuarios:
-        u["empresa_nombre"] = emp_map.get(u.get("empresa_id"), "-")
-    return render_template("sa_usuarios.html", usuarios=usuarios)
+        uu = dict(u)
+        uu["empresa_nombre"] = emp_map.get(uu.get("empresa_id"), "-")
+        usuarios_out.append(uu)
+    return render_template("sa_usuarios.html", usuarios=usuarios_out)
 
 @app.route("/sa/proyectos")
 @login_required
@@ -525,9 +537,12 @@ def sa_proyectos():
     proyectos = proyectos_data()["proyectos"]
     empresas = empresas_data()["empresas"]
     emp_map = {e.get("id"): e.get("nombre") for e in empresas}
+    proyectos_out = []
     for p in proyectos:
-        p["empresa_nombre"] = emp_map.get(p.get("empresa_id"), "-")
-    return render_template("sa_proyectos.html", proyectos=proyectos)
+        pp = dict(p)
+        pp["empresa_nombre"] = emp_map.get(pp.get("empresa_id"), "-")
+        proyectos_out.append(pp)
+    return render_template("sa_proyectos.html", proyectos=proyectos_out)
 
 @app.route("/sa/empresa/nueva", methods=["GET", "POST"])
 @login_required
@@ -543,7 +558,6 @@ def sa_empresa_nueva():
         correo_eje = (request.form.get("correo_ejecutor") or "").strip()
         pass_eje = request.form.get("pass_ejecutor") or ""
 
-        # robustez para int()
         try:
             max_users = int(request.form.get("licencia_max_usuarios") or 5)
         except ValueError:
@@ -572,6 +586,66 @@ def sa_empresa_nueva():
 
     return render_template("sa_empresa_nueva.html")
 
+# ================= SUPERADMIN: ELIMINAR (simple) =================
+@app.route("/sa/empresa/<int:empresa_id>/eliminar", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_empresa_eliminar(empresa_id):
+    # Elimina: empresa + proyectos asociados + usuarios asociados + tareas_{proyecto}.json
+    ed = empresas_data()
+    pd = proyectos_data()
+    ud = usuarios_data()
+
+    empresas = ed["empresas"]
+    proyectos = pd["proyectos"]
+    usuarios = ud["usuarios"]
+
+    # proyectos de la empresa
+    proys_emp = [p for p in proyectos if p.get("empresa_id") == empresa_id]
+    for p in proys_emp:
+        _safe_remove(tareas_file(p.get("id")))
+
+    proyectos = [p for p in proyectos if p.get("empresa_id") != empresa_id]
+    usuarios = [u for u in usuarios if u.get("empresa_id") != empresa_id]
+    empresas = [e for e in empresas if e.get("id") != empresa_id]
+
+    ed["empresas"] = empresas
+    pd["proyectos"] = proyectos
+    ud["usuarios"] = usuarios
+
+    _write_json(EMPRESAS_FILE, ed)
+    _write_json(PROYECTOS_FILE, pd)
+    _write_json(USUARIOS_FILE, ud)
+
+    flash("Empresa eliminada (con proyectos/usuarios asociados).", "ok")
+    return redirect(url_for("sa_empresas"))
+
+@app.route("/sa/usuario/<int:user_id>/eliminar", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_usuario_eliminar(user_id):
+    ud = usuarios_data()
+    usuarios = ud["usuarios"]
+    usuarios = [u for u in usuarios if u.get("id") != user_id]
+    ud["usuarios"] = usuarios
+    _write_json(USUARIOS_FILE, ud)
+    flash("Usuario eliminado.", "ok")
+    return redirect(url_for("sa_usuarios"))
+
+@app.route("/sa/proyecto/<int:proyecto_id>/eliminar", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_proyecto_eliminar(proyecto_id):
+    pd = proyectos_data()
+    proyectos = pd["proyectos"]
+    proyectos = [p for p in proyectos if p.get("id") != proyecto_id]
+    pd["proyectos"] = proyectos
+    _write_json(PROYECTOS_FILE, pd)
+
+    _safe_remove(tareas_file(proyecto_id))
+    flash("Proyecto eliminado (y archivo de tareas asociado).", "ok")
+    return redirect(url_for("sa_proyectos"))
+
 # ================= DASHBOARD EMPRESA =================
 @app.route("/empresa")
 @login_required
@@ -597,6 +671,16 @@ def empresa_dashboard():
         avances.append({"proyecto": p, "estadisticas": est, "avance_pct": avance})
 
     return render_template("empresa_dashboard.html", empresa=empresa, avances=avances, user=u)
+
+# ✅ Atajo para “Seleccionar proyecto” desde empresa_dashboard.html
+@app.route("/empresa/ir/<int:proyecto_id>")
+@login_required
+@require_roles("supervisor", "ejecutor", "superadmin")
+def empresa_ir_proyecto(proyecto_id):
+    u = current_user()
+    if not user_can_access_project(u, proyecto_id):
+        abort(403)
+    return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
 
 # ================= PROYECTO: PLANIFICADOR (index.html PRO) =================
 @app.route("/p/<int:proyecto_id>/")
@@ -755,7 +839,7 @@ def proyecto_informe(proyecto_id):
 def about():
     return render_template("about.html")
 
-# ================= INIT (se ejecuta 1 vez al importar app.py) =================
+# ================= INIT =================
 ensure_superadmin()
 
 if __name__ == "__main__":
