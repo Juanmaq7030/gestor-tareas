@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Super Admin - Proyectos</title>
+</head>
+<body>
+  {% include "_sa_nav.html" %}
+
+  <h2>Proyectos</h2>
+
+  {% if proyectos and proyectos|length > 0 %}
+    <table border="1" cellpadding="6" cellspacing="0">
+      <tr>
+        <th>ID</th><th>Nombre</th><th>Empresa</th><th>Fecha</th>
+      </tr>
+      {% for p in proyectos %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.nombre }}</td>
+        <td>{{ p.empresa_nombre }}</td>
+        <td>{{ p.fecha_creacion }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>No hay proyectos.</p>
+  {% endif %}
+</body>
+</html>
