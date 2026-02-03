@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Super Admin - Empresas</title>
+</head>
+<body>
+  {% include "_sa_nav.html" %}
+
+  <h2>Empresas</h2>
+
+  {% if empresas and empresas|length > 0 %}
+    <table border="1" cellpadding="6" cellspacing="0">
+      <tr>
+        <th>ID</th><th>Nombre</th><th>Fecha</th><th>Max usuarios</th><th>Max proyectos</th>
+      </tr>
+      {% for e in empresas %}
+      <tr>
+        <td>{{ e.id }}</td>
+        <td>{{ e.nombre }}</td>
+        <td>{{ e.fecha_creacion }}</td>
+        <td>{{ e.licencia_max_usuarios }}</td>
+        <td>{{ e.licencia_max_proyectos }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>No hay empresas.</p>
+  {% endif %}
+</body>
+</html>
