@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Super Admin - Configuración</title>
+</head>
+<body>
+  {% include "_sa_nav.html" %}
+
+  <h2>Configuración</h2>
+  <p><b>DATA_DIR:</b> {{ data_dir }}</p>
+  <p><b>EMPRESAS_FILE:</b> {{ empresas_file }}</p>
+  <p><b>PROYECTOS_FILE:</b> {{ proyectos_file }}</p>
+  <p><b>USUARIOS_FILE:</b> {{ usuarios_file }}</p>
+
+  <p style="margin-top:20px;">
+    Esta sección es solo informativa por ahora. Luego agregamos:
+    <ul>
+      <li>Botón “Reset/Backup JSON”</li>
+      <li>Eliminar empresa (y cascada usuarios/proyectos)</li>
+    </ul>
+  </p>
+</body>
+</html>
