@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Super Admin - Usuarios</title>
+</head>
+<body>
+  {% include "_sa_nav.html" %}
+
+  <h2>Usuarios</h2>
+
+  {% if usuarios and usuarios|length > 0 %}
+    <table border="1" cellpadding="6" cellspacing="0">
+      <tr>
+        <th>ID</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Empresa</th>
+      </tr>
+      {% for u in usuarios %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.nombre }}</td>
+        <td>{{ u.correo }}</td>
+        <td>{{ u.rol }}</td>
+        <td>{{ u.empresa_nombre }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>No hay usuarios.</p>
+  {% endif %}
+</body>
+</html>
