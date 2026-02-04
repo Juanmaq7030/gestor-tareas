@@ -23,15 +23,15 @@ os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # ================= CONFIGURACIÓN =================
-ALLOWED_EXTENSIONS = {'pdf','png','jpg','jpeg','gif','doc','docx','xls','xlsx','txt'}
-ESTADOS = ['Sin Ejecutar','En Ejecución','Pendiente de','Completada','Validada']
+ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'txt'}
+ESTADOS = ['Sin Ejecutar', 'En Ejecución', 'Pendiente de', 'Completada', 'Validada']
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-EMPRESAS_FILE  = os.path.join(DATA_DIR, "empresas.json")
+EMPRESAS_FILE = os.path.join(DATA_DIR, "empresas.json")
 PROYECTOS_FILE = os.path.join(DATA_DIR, "proyectos.json")
-USUARIOS_FILE  = os.path.join(DATA_DIR, "usuarios.json")
+USUARIOS_FILE = os.path.join(DATA_DIR, "usuarios.json")
 
 # ================= UTILIDADES JSON =================
 def _read_json(path, default):
@@ -126,7 +126,7 @@ def require_roles(*roles):
         return wrapper
     return deco
 
-# -------- Proyecto activo en sesión (NUEVO) --------
+# -------- Proyecto activo en sesión --------
 def active_project_id():
     pid = session.get("project_id")
     try:
@@ -168,7 +168,6 @@ def load_tareas(proyecto_id: int):
     if tareas:
         contador_id = max(contador_id, max(t.get('id', 0) for t in tareas) + 1)
 
-    # normalización
     cambios = False
     for t in tareas:
         estado_antiguo = t.get('situacion', 'Pendiente')
@@ -352,7 +351,7 @@ def ensure_superadmin():
     ud = usuarios_data()
     users = ud["usuarios"]
 
-    by_email = next((u for u in users if (u.get("correo","").strip().lower() == admin_email)), None)
+    by_email = next((u for u in users if (u.get("correo", "").strip().lower() == admin_email)), None)
     if by_email:
         by_email["rol"] = "superadmin"
         by_email["empresa_id"] = None
@@ -424,9 +423,9 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
     ud = usuarios_data()
     users = ud["usuarios"]
 
-    if any((u.get("correo","").lower() == correo_sup.lower()) for u in users):
+    if any((u.get("correo", "").lower() == correo_sup.lower()) for u in users):
         raise ValueError("Correo supervisor ya existe")
-    if any((u.get("correo","").lower() == correo_eje.lower()) for u in users):
+    if any((u.get("correo", "").lower() == correo_eje.lower()) for u in users):
         raise ValueError("Correo ejecutor ya existe")
 
     sup_id = _next_id(users)
@@ -463,9 +462,9 @@ def login():
         password = request.form.get("password") or ""
 
         users = usuarios_data()["usuarios"]
-        u = next((x for x in users if (x.get("correo","").strip().lower() == ident)), None)
+        u = next((x for x in users if (x.get("correo", "").strip().lower() == ident)), None)
 
-        if not u or not check_password_hash(u.get("password_hash",""), password):
+        if not u or not check_password_hash(u.get("password_hash", ""), password):
             flash("Credenciales inválidas", "error")
             return render_template("login.html"), 200
 
@@ -694,25 +693,8 @@ def empresa_dashboard():
         avances.append({"proyecto": p, "estadisticas": est, "avance_pct": avance})
 
     return render_template("empresa_dashboard.html", empresa=empresa, avances=avances, user=u)
-    
-@app.route("/seleccionar-proyecto")
-@login_required
-@require_roles("supervisor", "ejecutor")
-def seleccionar_proyecto():
-    u = current_user()
 
-    proyectos = proyectos_data()["proyectos"]
-    proyectos_empresa = [
-        p for p in proyectos if p.get("empresa_id") == u.get("empresa_id")
-    ]
-
-    return render_template(
-        "seleccionar_proyecto.html",
-        proyectos=proyectos_empresa,
-        user=u
-    )
-
-# ================= SELECCIONAR PROYECTO (NUEVO) =================
+# ================= SELECCIONAR PROYECTO =================
 @app.route("/seleccionar-proyecto", methods=["GET"])
 @login_required
 @require_roles("supervisor", "ejecutor")
@@ -726,7 +708,7 @@ def seleccionar_proyecto():
         flash("Tu empresa no tiene proyectos creados. Pide al Superadmin que cree uno.", "error")
         return redirect(url_for("empresa_dashboard"))
 
-    # si solo hay 1 proyecto, se selecciona automático
+    # Si solo hay 1 proyecto, selección automática
     if len(proys) == 1:
         pid = int(proys[0]["id"])
         set_active_project(pid)
@@ -757,7 +739,7 @@ def cambiar_proyecto():
     clear_active_project()
     return redirect(url_for("seleccionar_proyecto"))
 
-# ✅ Atajo para “Seleccionar proyecto” desde empresa_dashboard.html
+# ✅ Atajo para entrar a un proyecto desde empresa_dashboard.html
 @app.route("/empresa/ir/<int:proyecto_id>")
 @login_required
 @require_roles("supervisor", "ejecutor", "superadmin")
@@ -773,7 +755,7 @@ def empresa_ir_proyecto(proyecto_id):
         return redirect(url_for("proyecto_tablero", proyecto_id=proyecto_id))
     return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
 
-# ================= PROYECTO: PLANIFICADOR (index.html PRO) =================
+# ================= PROYECTO: PLANIFICADOR =================
 @app.route("/p/<int:proyecto_id>/")
 @login_required
 @require_project_access
