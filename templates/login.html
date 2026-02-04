@@ -1,61 +1,156 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Plataforma Digital Comunal</title>
-    <style>
-        body {
-            background:#f0f2f5;
-            font-family: Arial;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-        }
-        .login {
-            background:white;
-            padding:30px;
-            width:300px;
-            border-radius:10px;
-            box-shadow:0 0 10px rgba(0,0,0,.1);
-        }
-        h2 { text-align:center; }
-        input {
-            width:100%;
-            padding:10px;
-            margin:10px 0;
-        }
-        button {
-            width:100%;
-            padding:10px;
-            background:#007bff;
-            border:none;
-            color:white;
-            font-size:16px;
-        }
-        .error {
-            color:red;
-            text-align:center;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Ingreso · Digital Comunity</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #f4f6f9, #e9ecf3);
+      font-family: Arial, sans-serif;
+    }
+
+    .login-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-card {
+      background: #fff;
+      padding: 36px 32px;
+      border-radius: 18px;
+      width: 100%;
+      max-width: 430px;
+      box-shadow: 0 12px 32px rgba(0,0,0,.14);
+      text-align: center;
+    }
+
+    .logo {
+      margin-bottom: 14px;
+    }
+
+    .logo img {
+      max-width: 260px;
+      height: auto;
+    }
+
+    .brand-name {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+    }
+
+    .brand-tagline {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 22px;
+      font-style: italic;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 18px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #2c7be5;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: #2c7be5;
+      color: #fff;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: .95;
+    }
+
+    .error {
+      background: #ffe5e5;
+      color: #a10000;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      font-size: 14px;
+    }
+
+    footer {
+      margin-top: 18px;
+      font-size: 12px;
+      color: #888;
+    }
+  </style>
 </head>
+
 <body>
+<div class="login-wrapper">
+  <div class="login-card">
 
-<div class="login">
-    <h2>Ingreso</h2>
+    <!-- LOGO -->
+    <div class="logo">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Digital Comunity">
+    </div>
 
-    {% with messages = get_flashed_messages() %}
+    <!-- MARCA -->
+    <div class="brand-name">Digital Comunity</div>
+    <div class="brand-tagline">
+      Generando Proyectos en un Mar de Oportunidades
+    </div>
+
+    <h1>Gestor de Tareas</h1>
+    <p class="muted">Acceso a la plataforma</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div class="error">{{ messages[0] }}</div>
+        {% for category, message in messages %}
+          <div class="error">{{ message }}</div>
+        {% endfor %}
       {% endif %}
     {% endwith %}
 
     <form method="POST">
-    <input name="correo" placeholder="Correo" required>
-    <input type="password" name="password" placeholder="Contraseña" required>
-    <button>Entrar</button>
-</form>
-</div>
+      <input type="email" name="correo" placeholder="Correo electrónico" required>
+      <input type="password" name="password" placeholder="Contraseña" required>
+      <button type="submit">Ingresar</button>
+    </form>
 
+    <footer>
+      © {{ now().year if now else '2024' }} · Digital Comunity
+    </footer>
+
+  </div>
+</div>
 </body>
 </html>
