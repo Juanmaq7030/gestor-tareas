@@ -126,6 +126,20 @@ def require_roles(*roles):
         return wrapper
     return deco
 
+# -------- Proyecto activo en sesión (NUEVO) --------
+def active_project_id():
+    pid = session.get("project_id")
+    try:
+        return int(pid) if pid is not None else None
+    except Exception:
+        return None
+
+def set_active_project(pid: int):
+    session["project_id"] = int(pid)
+
+def clear_active_project():
+    session.pop("project_id", None)
+
 def user_can_access_project(u, proyecto_id: int) -> bool:
     if u.get("rol") == "superadmin":
         return True
@@ -393,8 +407,8 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
     ed["empresas"] = empresas
     _write_json(EMPRESAS_FILE, ed)
 
-    pd = proyectos_data()
-    proyectos = pd["proyectos"]
+    pd_ = proyectos_data()
+    proyectos = pd_["proyectos"]
     proyecto_id = _next_id(proyectos)
     proyectos.append({
         "id": proyecto_id,
@@ -402,8 +416,8 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
         "nombre": nombre_proyecto,
         "fecha_creacion": datetime.now().strftime("%Y-%m-%d")
     })
-    pd["proyectos"] = proyectos
-    _write_json(PROYECTOS_FILE, pd)
+    pd_["proyectos"] = proyectos
+    _write_json(PROYECTOS_FILE, pd_)
 
     save_tareas(proyecto_id, [], 1)
 
@@ -455,15 +469,18 @@ def login():
             flash("Credenciales inválidas", "error")
             return render_template("login.html"), 200
 
-        # ✅ SESIÓN COMPLETA (clave para que todo el flujo sea estable)
+        # ✅ SESIÓN
+        session.clear()
         session["user_id"] = u["id"]
         session["nombre"] = u.get("nombre") or u.get("correo") or "Usuario"
         session["rol"] = u.get("rol")
         session["empresa_id"] = u.get("empresa_id")
+        clear_active_project()
 
         if u.get("rol") == "superadmin":
             return redirect(url_for("sa_dashboard"))
-        return redirect(url_for("empresa_dashboard"))
+
+        return redirect(url_for("seleccionar_proyecto"))
 
     return render_template("login.html"), 200
 
@@ -477,9 +494,17 @@ def root():
     u = current_user()
     if not u:
         return redirect(url_for("login"))
+
     if u.get("rol") == "superadmin":
         return redirect(url_for("sa_dashboard"))
-    return redirect(url_for("empresa_dashboard"))
+
+    pid = active_project_id()
+    if pid:
+        if u.get("rol") == "supervisor":
+            return redirect(url_for("proyecto_tablero", proyecto_id=pid))
+        return redirect(url_for("proyecto_index", proyecto_id=pid))
+
+    return redirect(url_for("seleccionar_proyecto"))
 
 # ================= SUPERADMIN =================
 @app.route("/sa")
@@ -591,16 +616,14 @@ def sa_empresa_nueva():
 @login_required
 @require_roles("superadmin")
 def sa_empresa_eliminar(empresa_id):
-    # Elimina: empresa + proyectos asociados + usuarios asociados + tareas_{proyecto}.json
     ed = empresas_data()
-    pd = proyectos_data()
+    pd_ = proyectos_data()
     ud = usuarios_data()
 
     empresas = ed["empresas"]
-    proyectos = pd["proyectos"]
+    proyectos = pd_["proyectos"]
     usuarios = ud["usuarios"]
 
-    # proyectos de la empresa
     proys_emp = [p for p in proyectos if p.get("empresa_id") == empresa_id]
     for p in proys_emp:
         _safe_remove(tareas_file(p.get("id")))
@@ -610,11 +633,11 @@ def sa_empresa_eliminar(empresa_id):
     empresas = [e for e in empresas if e.get("id") != empresa_id]
 
     ed["empresas"] = empresas
-    pd["proyectos"] = proyectos
+    pd_["proyectos"] = proyectos
     ud["usuarios"] = usuarios
 
     _write_json(EMPRESAS_FILE, ed)
-    _write_json(PROYECTOS_FILE, pd)
+    _write_json(PROYECTOS_FILE, pd_)
     _write_json(USUARIOS_FILE, ud)
 
     flash("Empresa eliminada (con proyectos/usuarios asociados).", "ok")
@@ -636,11 +659,11 @@ def sa_usuario_eliminar(user_id):
 @login_required
 @require_roles("superadmin")
 def sa_proyecto_eliminar(proyecto_id):
-    pd = proyectos_data()
-    proyectos = pd["proyectos"]
+    pd_ = proyectos_data()
+    proyectos = pd_["proyectos"]
     proyectos = [p for p in proyectos if p.get("id") != proyecto_id]
-    pd["proyectos"] = proyectos
-    _write_json(PROYECTOS_FILE, pd)
+    pd_["proyectos"] = proyectos
+    _write_json(PROYECTOS_FILE, pd_)
 
     _safe_remove(tareas_file(proyecto_id))
     flash("Proyecto eliminado (y archivo de tareas asociado).", "ok")
@@ -672,6 +695,51 @@ def empresa_dashboard():
 
     return render_template("empresa_dashboard.html", empresa=empresa, avances=avances, user=u)
 
+# ================= SELECCIONAR PROYECTO (NUEVO) =================
+@app.route("/seleccionar-proyecto", methods=["GET"])
+@login_required
+@require_roles("supervisor", "ejecutor")
+@no_cache
+def seleccionar_proyecto():
+    u = current_user()
+    proyectos = proyectos_data()["proyectos"]
+    proys = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id")]
+
+    if not proys:
+        flash("Tu empresa no tiene proyectos creados. Pide al Superadmin que cree uno.", "error")
+        return redirect(url_for("empresa_dashboard"))
+
+    # si solo hay 1 proyecto, se selecciona automático
+    if len(proys) == 1:
+        pid = int(proys[0]["id"])
+        set_active_project(pid)
+        if u.get("rol") == "supervisor":
+            return redirect(url_for("proyecto_tablero", proyecto_id=pid))
+        return redirect(url_for("proyecto_index", proyecto_id=pid))
+
+    return render_template("seleccionar_proyecto.html", proyectos=proys, user=u)
+
+@app.route("/seleccionar-proyecto/<int:proyecto_id>", methods=["POST"])
+@login_required
+@require_roles("supervisor", "ejecutor")
+def seleccionar_proyecto_post(proyecto_id):
+    u = current_user()
+    if not user_can_access_project(u, proyecto_id):
+        abort(403)
+
+    set_active_project(proyecto_id)
+
+    if u.get("rol") == "supervisor":
+        return redirect(url_for("proyecto_tablero", proyecto_id=proyecto_id))
+    return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
+
+@app.route("/cambiar-proyecto", methods=["POST"])
+@login_required
+@require_roles("supervisor", "ejecutor")
+def cambiar_proyecto():
+    clear_active_project()
+    return redirect(url_for("seleccionar_proyecto"))
+
 # ✅ Atajo para “Seleccionar proyecto” desde empresa_dashboard.html
 @app.route("/empresa/ir/<int:proyecto_id>")
 @login_required
@@ -680,6 +748,12 @@ def empresa_ir_proyecto(proyecto_id):
     u = current_user()
     if not user_can_access_project(u, proyecto_id):
         abort(403)
+
+    if u.get("rol") != "superadmin":
+        set_active_project(proyecto_id)
+
+    if u.get("rol") == "supervisor":
+        return redirect(url_for("proyecto_tablero", proyecto_id=proyecto_id))
     return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
 
 # ================= PROYECTO: PLANIFICADOR (index.html PRO) =================
