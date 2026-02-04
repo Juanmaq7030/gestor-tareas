@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seleccionar Proyecto</title>
+  <style>
+    body{font-family:Arial, sans-serif; margin:24px; background:#f6f7fb;}
+    .card{max-width:760px; margin:0 auto; background:#fff; border-radius:14px; padding:20px; box-shadow:0 8px 24px rgba(0,0,0,.08);}
+    h1{margin:0 0 10px 0;}
+    .muted{color:#666; margin:0 0 16px 0;}
+    .list{display:grid; gap:10px;}
+    .item{display:flex; justify-content:space-between; align-items:center; padding:14px; border:1px solid #eee; border-radius:12px; background:#fff;}
+    .name{font-weight:700;}
+    form{margin:0;}
+    button{padding:10px 14px; border:0; border-radius:10px; background:#1f6feb; color:#fff; cursor:pointer;}
+    button:hover{opacity:.92;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Selecciona un proyecto</h1>
+    <p class="muted">Usuario: {{ user.nombre }} | Rol: {{ user.rol }}</p>
+
+    <div class="list">
+      {% for p in proyectos %}
+        <div class="item">
+          <div>
+            <div class="name">{{ p.nombre }}</div>
+            <div class="muted">ID: {{ p.id }}</div>
+          </div>
+
+          <form method="POST" action="{{ url_for('seleccionar_proyecto_post', proyecto_id=p.id) }}">
+            <button type="submit">Entrar</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</body>
+</html>
