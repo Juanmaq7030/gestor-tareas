@@ -9,6 +9,14 @@
     <title>Tablero de Control - Planificador de Tareas</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        form.inline { display:inline; margin:0; padding:0; }
+        .link-btn {
+            background:none; border:none; padding:0; margin:0;
+            color:#0d6efd; cursor:pointer; text-decoration:underline;
+            font: inherit;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -19,8 +27,15 @@
                 <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">Tablero de Control</a>
                 <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
                 <a href="{{ url_for('about') }}">Acerca de</a>
+
                 <span style="float:right">
+                    <!-- ✅ NUEVO: Cambiar proyecto -->
+                    <form class="inline" method="POST" action="{{ url_for('cambiar_proyecto') }}">
+                        <button type="submit" class="link-btn">🔁 Cambiar proyecto</button>
+                    </form>
+                    &nbsp;|&nbsp;
                     <a href="{{ url_for('empresa_dashboard') }}">🏢 Empresa</a>
+                    &nbsp;|&nbsp;
                     <a href="{{ url_for('logout') }}">Salir</a>
                 </span>
             </nav>
@@ -240,11 +255,11 @@
                         label: 'Tareas por Estado',
                         data: {{ estadisticas.por_estado.values()|list|tojson }},
                         backgroundColor: [
-                            '#ffc107', // Sin Ejecutar
-                            '#0d6efd', // En Ejecución
-                            '#e67e22', // Pendiente de
-                            '#27ae60', // Completada
-                            '#8e44ad'  // Validada
+                            '#ffc107',
+                            '#0d6efd',
+                            '#e67e22',
+                            '#27ae60',
+                            '#8e44ad'
                         ]
                     }]
                 },
@@ -252,9 +267,7 @@
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
+                        legend: { position: 'bottom' }
                     }
                 }
             });
@@ -276,12 +289,8 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
-                    }
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
                 }
             });
         }
@@ -303,9 +312,7 @@
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
-                    }
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
                 }
             });
         }
