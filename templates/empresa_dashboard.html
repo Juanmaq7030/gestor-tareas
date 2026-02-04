@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Empresa · Panel de Proyectos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  <style>
+    .card {
+      background: #fff;
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,.08);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .avance {
+      font-size: 28px;
+      font-weight: bold;
+      color: #2c7be5;
+    }
+    .muted {
+      color: #666;
+      font-size: 14px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 14px;
+      background: #2c7be5;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    .btn.secondary {
+      background: #6c757d;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <header style="margin-bottom:20px;">
+    <h1>🏢 {{ empresa.nombre }}</h1>
+    <p class="muted">
+      Usuario: <strong>{{ user.nombre }}</strong> · Rol: <strong>{{ user.rol }}</strong>
+    </p>
+
+    <div style="margin-top:10px;">
+      <a class="btn secondary" href="{{ url_for('logout') }}">Salir</a>
+    </div>
+  </header>
+
+  <section class="grid">
+
+    {% for item in avances %}
+    <div class="card">
+      <h2 style="margin-top:0;">📁 {{ item.proyecto.nombre }}</h2>
+
+      <p class="muted">
+        Total tareas: {{ item.estadisticas.total }}<br>
+        Completadas: {{ item.estadisticas.por_estado.get('Completada', 0) }}<br>
+        Validadas: {{ item.estadisticas.por_estado.get('Validada', 0) }}
+      </p>
+
+      <div class="avance">
+        {{ item.avance_pct }}%
+      </div>
+      <p class="muted">Avance del proyecto</p>
+
+      <div style="margin-top:12px;">
+        {% if user.rol == 'supervisor' %}
+          <a class="btn" href="{{ url_for('empresa_ir_proyecto', proyecto_id=item.proyecto.id) }}">
+            📊 Ir al Tablero
+          </a>
+        {% else %}
+          <a class="btn" href="{{ url_for('empresa_ir_proyecto', proyecto_id=item.proyecto.id) }}">
+            📋 Ir a Tareas
+          </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+  </section>
+
+</div>
+</body>
+</html>
