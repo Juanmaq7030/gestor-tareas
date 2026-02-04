@@ -694,6 +694,23 @@ def empresa_dashboard():
         avances.append({"proyecto": p, "estadisticas": est, "avance_pct": avance})
 
     return render_template("empresa_dashboard.html", empresa=empresa, avances=avances, user=u)
+    
+@app.route("/seleccionar-proyecto")
+@login_required
+@require_roles("supervisor", "ejecutor")
+def seleccionar_proyecto():
+    u = current_user()
+
+    proyectos = proyectos_data()["proyectos"]
+    proyectos_empresa = [
+        p for p in proyectos if p.get("empresa_id") == u.get("empresa_id")
+    ]
+
+    return render_template(
+        "seleccionar_proyecto.html",
+        proyectos=proyectos_empresa,
+        user=u
+    )
 
 # ================= SELECCIONAR PROYECTO (NUEVO) =================
 @app.route("/seleccionar-proyecto", methods=["GET"])
