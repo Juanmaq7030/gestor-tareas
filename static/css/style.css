@@ -2,6 +2,37 @@
    STYLE.CSS (REEMPLAZAR COMPLETO)
    Responsive: móvil + tablet + desktop
    ============================================================================ */
+.login-header{
+  text-align:center;
+  margin-bottom: 24px;
+}
+
+.brand-title{
+  font-size: 26px;
+  font-weight: 800;
+  color:#1f2937;
+  letter-spacing: .4px;
+}
+
+.brand-tagline{
+  font-size: 13px;
+  color:#6b7280;
+  margin-top: 4px;
+  margin-bottom: 18px;
+  font-style: italic;
+}
+
+.product-title{
+  font-size: 18px;
+  font-weight: 700;
+  color:#2563eb;
+  margin-bottom: 4px;
+}
+
+.product-subtitle{
+  font-size: 13px;
+  color:#6b7280;
+}
 
 * {
   margin: 0;
