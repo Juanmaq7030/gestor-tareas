@@ -1,25 +1,178 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Super Admin - Configuración</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Superadmin · Configuración</title>
+  <style>
+    body{font-family:Arial, sans-serif; margin:18px; background:#f6f7fb; color:#222;}
+    .wrap{max-width:1100px; margin:0 auto;}
+    .top{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;}
+    .card{background:#fff; border-radius:14px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.08); margin:14px 0;}
+    h1{margin:0;}
+    h2{margin:0 0 10px 0;}
+    .muted{color:#666; margin:6px 0 0 0;}
+    .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+    @media (max-width: 900px){ .grid{grid-template-columns:1fr;} }
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    input, select{padding:10px; border:1px solid #ddd; border-radius:10px; width:100%;}
+    .w-auto{width:auto;}
+    .btn{padding:10px 12px; border:0; border-radius:10px; cursor:pointer; font-weight:700;}
+    .btn.primary{background:#1f6feb; color:#fff;}
+    .btn.gray{background:#6c757d; color:#fff;}
+    .btn.red{background:#dc3545; color:#fff;}
+    .btn.orange{background:#fd7e14; color:#fff;}
+    .btn.green{background:#198754; color:#fff;}
+    .pill{display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; background:#eef2ff;}
+    .sep{height:1px; background:#eee; margin:12px 0;}
+    a{color:#1f6feb; text-decoration:none;}
+    .mini{font-size:12px; color:#666;}
+    .box{border:1px solid #eee; border-radius:12px; padding:12px; margin-top:10px;}
+    .danger{background:#fff5f5; border-color:#ffd5d5;}
+  </style>
 </head>
 <body>
-  {% include "_sa_nav.html" %}
+  <div class="wrap">
 
-  <h2>Configuración</h2>
-  <p><b>DATA_DIR:</b> {{ data_dir }}</p>
-  <p><b>EMPRESAS_FILE:</b> {{ empresas_file }}</p>
-  <p><b>PROYECTOS_FILE:</b> {{ proyectos_file }}</p>
-  <p><b>USUARIOS_FILE:</b> {{ usuarios_file }}</p>
+    <div class="top">
+      <div>
+        <h1>🛠 Superadmin · Configuración</h1>
+        <p class="muted">Data: {{ data_dir }}</p>
+      </div>
+      <div class="row">
+        <a class="btn gray" href="{{ url_for('sa_dashboard') }}">🏠 Inicio</a>
+        <a class="btn gray" href="{{ url_for('sa_empresa_nueva') }}">➕ Nueva Empresa</a>
+        <a class="btn gray" href="{{ url_for('logout') }}">🚪 Salir</a>
+      </div>
+    </div>
 
-  <p style="margin-top:20px;">
-    Esta sección es solo informativa por ahora. Luego agregamos:
-    <ul>
-      <li>Botón “Reset/Backup JSON”</li>
-      <li>Eliminar empresa (y cascada usuarios/proyectos)</li>
-    </ul>
-  </p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="card">
+          {% for cat, msg in messages %}
+            <div class="mini"><strong>{{ cat|upper }}:</strong> {{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="card">
+      <h2>🏢 Empresas · Proyectos · Usuarios</h2>
+      <p class="mini">Aquí puedes editar nombres, resetear contraseñas, terminar proyectos y eliminar en cascada.</p>
+
+      {% for e in empresas %}
+        <div class="box {% if e.get('activa', true) == false %}danger{% endif %}">
+          <div class="row" style="justify-content:space-between;">
+            <div>
+              <div><strong>Empresa:</strong> <span class="pill">ID {{ e.id }}</span></div>
+              <div class="mini">Estado: {% if e.get('activa', true) %}<strong>Activa</strong>{% else %}<strong>Inactiva</strong>{% endif %}</div>
+            </div>
+
+            <form class="row" method="POST" action="{{ url_for('sa_empresa_editar', empresa_id=e.id) }}" style="min-width: 420px;">
+              <input name="nombre" placeholder="Nombre empresa" value="{{ e.nombre }}">
+              <label class="mini w-auto">
+                <input type="checkbox" name="activa" {% if e.get('activa', true) %}checked{% endif %}>
+                Activa
+              </label>
+              <button class="btn primary w-auto" type="submit">Guardar</button>
+            </form>
+          </div>
+
+          <div class="sep"></div>
+
+          <div class="grid">
+            <!-- PROYECTOS -->
+            <div>
+              <strong>📁 Proyectos</strong>
+              <div class="mini">Editar nombre · Terminar · Eliminar</div>
+
+              {% set proys = proys_por_empresa.get(e.id, []) %}
+              {% if not proys %}
+                <div class="mini" style="margin-top:8px;">Sin proyectos.</div>
+              {% endif %}
+
+              {% for p in proys %}
+                <div class="box" style="margin-top:10px;">
+                  <div class="row" style="justify-content:space-between;">
+                    <div>
+                      <div><span class="pill">ID {{ p.id }}</span> {{ p.nombre }}</div>
+                      <div class="mini">
+                        {% if p.get('terminado', false) %}
+                          Estado: <strong>Terminado</strong> {% if p.get('fecha_termino') %}({{ p.fecha_termino }}){% endif %}
+                        {% else %}
+                          Estado: <strong>Activo</strong>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+
+                  <form class="row" method="POST" action="{{ url_for('sa_proyecto_editar', proyecto_id=p.id) }}" style="margin-top:10px;">
+                    <input name="nombre" placeholder="Nombre proyecto" value="{{ p.nombre }}">
+                    <label class="mini w-auto">
+                      <input type="checkbox" name="terminado" {% if p.get('terminado', false) %}checked{% endif %}>
+                      Terminado
+                    </label>
+                    <button class="btn primary w-auto" type="submit">Guardar</button>
+                  </form>
+
+                  <form method="POST" action="{{ url_for('sa_proyecto_eliminar_post', proyecto_id=p.id) }}" onsubmit="return confirm('¿Eliminar proyecto y sus tareas?');" style="margin-top:10px;">
+                    <button class="btn red" type="submit">🗑 Eliminar proyecto</button>
+                  </form>
+                </div>
+              {% endfor %}
+            </div>
+
+            <!-- USUARIOS -->
+            <div>
+              <strong>👤 Usuarios</strong>
+              <div class="mini">Editar nombre/correo/rol · Reset password · Eliminar</div>
+
+              {% set us = users_por_empresa.get(e.id, []) %}
+              {% if not us %}
+                <div class="mini" style="margin-top:8px;">Sin usuarios.</div>
+              {% endif %}
+
+              {% for u in us %}
+                <div class="box" style="margin-top:10px;">
+                  <div class="mini"><span class="pill">ID {{ u.id }}</span> Rol: <strong>{{ u.rol }}</strong></div>
+
+                  <form class="row" method="POST" action="{{ url_for('sa_usuario_editar', user_id=u.id) }}" style="margin-top:10px;">
+                    <input name="nombre" placeholder="Nombre" value="{{ u.nombre }}">
+                    <input name="correo" placeholder="Correo" value="{{ u.correo }}">
+                    <select class="w-auto" name="rol">
+                      <option value="supervisor" {% if u.rol=='supervisor' %}selected{% endif %}>supervisor</option>
+                      <option value="ejecutor" {% if u.rol=='ejecutor' %}selected{% endif %}>ejecutor</option>
+                      <option value="superadmin" {% if u.rol=='superadmin' %}selected{% endif %}>superadmin</option>
+                    </select>
+                    <button class="btn primary w-auto" type="submit">Guardar</button>
+                  </form>
+
+                  <form class="row" method="POST" action="{{ url_for('sa_usuario_reset_password', user_id=u.id) }}" style="margin-top:10px;">
+                    <input name="new_password" placeholder="Nueva contraseña (mín 6)" type="text">
+                    <button class="btn orange w-auto" type="submit">🔑 Reset</button>
+                  </form>
+
+                  <form method="POST" action="{{ url_for('sa_usuario_eliminar_post', user_id=u.id) }}" onsubmit="return confirm('¿Eliminar usuario?');" style="margin-top:10px;">
+                    <button class="btn red" type="submit">🗑 Eliminar usuario</button>
+                  </form>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <form method="POST" action="{{ url_for('sa_empresa_eliminar', empresa_id=e.id) }}" onsubmit="return confirm('⚠️ Esto elimina empresa + proyectos + usuarios + tareas. ¿Continuar?');">
+            <button class="btn red" type="submit">🧨 Eliminar EMPRESA completa</button>
+            <div class="mini" style="margin-top:6px;">Esto borra en cascada: proyectos, usuarios y archivos tareas_*.json.</div>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+
+  </div>
 </body>
 </html>
