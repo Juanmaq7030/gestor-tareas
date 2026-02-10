@@ -140,12 +140,24 @@ def set_active_project(pid: int):
 def clear_active_project():
     session.pop("project_id", None)
 
+def _get_project(proyecto_id: int):
+    proyectos = proyectos_data()["proyectos"]
+    return next((p for p in proyectos if p.get("id") == int(proyecto_id)), None)
+
+def _is_project_terminated(proyecto_id: int) -> bool:
+    p = _get_project(proyecto_id)
+    if not p:
+        return True
+    return bool(p.get("terminado", False))
+
 def user_can_access_project(u, proyecto_id: int) -> bool:
     if u.get("rol") == "superadmin":
         return True
-    proyectos = proyectos_data()["proyectos"]
-    p = next((p for p in proyectos if p.get("id") == int(proyecto_id)), None)
+    p = _get_project(int(proyecto_id))
     if not p:
+        return False
+    # bloquea acceso a proyectos terminados para no-superadmin
+    if p.get("terminado", False):
         return False
     return p.get("empresa_id") == u.get("empresa_id")
 
@@ -401,7 +413,8 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
         "nombre": nombre_empresa,
         "fecha_creacion": datetime.now().strftime("%Y-%m-%d"),
         "licencia_max_usuarios": int(max_users),
-        "licencia_max_proyectos": int(max_proys)
+        "licencia_max_proyectos": int(max_proys),
+        "activa": True
     })
     ed["empresas"] = empresas
     _write_json(EMPRESAS_FILE, ed)
@@ -413,7 +426,8 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
         "id": proyecto_id,
         "empresa_id": empresa_id,
         "nombre": nombre_proyecto,
-        "fecha_creacion": datetime.now().strftime("%Y-%m-%d")
+        "fecha_creacion": datetime.now().strftime("%Y-%m-%d"),
+        "terminado": False
     })
     pd_["proyectos"] = proyectos
     _write_json(PROYECTOS_FILE, pd_)
@@ -468,7 +482,6 @@ def login():
             flash("Credenciales inválidas", "error")
             return render_template("login.html"), 200
 
-        # ✅ SESIÓN
         session.clear()
         session["user_id"] = u["id"]
         session["nombre"] = u.get("nombre") or u.get("correo") or "Usuario"
@@ -520,19 +533,7 @@ def sa_dashboard():
         resumen.append({"empresa": e, "n_proyectos": len(proys), "n_usuarios": len(users)})
     return render_template("admin_dashboard.html", resumen=resumen)
 
-# ================= SUPERADMIN: SECCIONES =================
-@app.route("/sa/config")
-@login_required
-@require_roles("superadmin")
-def sa_config():
-    return render_template(
-        "sa_config.html",
-        data_dir=DATA_DIR,
-        empresas_file=EMPRESAS_FILE,
-        proyectos_file=PROYECTOS_FILE,
-        usuarios_file=USUARIOS_FILE
-    )
-
+# ================= SUPERADMIN: SECCIONES (LISTADOS) =================
 @app.route("/sa/empresas")
 @login_required
 @require_roles("superadmin")
@@ -610,7 +611,7 @@ def sa_empresa_nueva():
 
     return render_template("sa_empresa_nueva.html")
 
-# ================= SUPERADMIN: ELIMINAR (simple) =================
+# ================= SUPERADMIN: ELIMINAR EMPRESA (cascada) =================
 @app.route("/sa/empresa/<int:empresa_id>/eliminar", methods=["POST"])
 @login_required
 @require_roles("superadmin")
@@ -640,24 +641,110 @@ def sa_empresa_eliminar(empresa_id):
     _write_json(USUARIOS_FILE, ud)
 
     flash("Empresa eliminada (con proyectos/usuarios asociados).", "ok")
-    return redirect(url_for("sa_empresas"))
+    return redirect(url_for("sa_config"))
 
-@app.route("/sa/usuario/<int:user_id>/eliminar", methods=["POST"])
+# =======================
+# SUPERADMIN: CONFIG PANEL (CRUD)
+# =======================
+def _bool(v):
+    return str(v).strip().lower() in ("1", "true", "on", "yes", "si", "sí")
+
+@app.route("/sa/config")
 @login_required
 @require_roles("superadmin")
-def sa_usuario_eliminar(user_id):
+@no_cache
+def sa_config():
+    ed = empresas_data()
+    pd_ = proyectos_data()
     ud = usuarios_data()
+
+    empresas = ed["empresas"]
+    proyectos = pd_["proyectos"]
     usuarios = ud["usuarios"]
-    usuarios = [u for u in usuarios if u.get("id") != user_id]
-    ud["usuarios"] = usuarios
-    _write_json(USUARIOS_FILE, ud)
-    flash("Usuario eliminado.", "ok")
-    return redirect(url_for("sa_usuarios"))
+
+    proys_por_empresa = {}
+    for p in proyectos:
+        proys_por_empresa.setdefault(p.get("empresa_id"), []).append(p)
+
+    users_por_empresa = {}
+    for u in usuarios:
+        users_por_empresa.setdefault(u.get("empresa_id"), []).append(u)
+
+    empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
+    for k in proys_por_empresa:
+        proys_por_empresa[k] = sorted(proys_por_empresa[k], key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
+    for k in users_por_empresa:
+        users_por_empresa[k] = sorted(users_por_empresa[k], key=lambda x: (str(x.get("correo", "")).lower(), x.get("id", 0)))
+
+    return render_template(
+        "sa_config.html",
+        empresas=empresas_sorted,
+        proys_por_empresa=proys_por_empresa,
+        users_por_empresa=users_por_empresa,
+        proyectos=proyectos,
+        usuarios=usuarios,
+        data_dir=DATA_DIR
+    )
+
+@app.route("/sa/empresa/<int:empresa_id>/editar", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_empresa_editar(empresa_id):
+    ed = empresas_data()
+    empresas = ed["empresas"]
+
+    nombre = (request.form.get("nombre") or "").strip()
+    activa = _bool(request.form.get("activa"))
+
+    e = next((x for x in empresas if x.get("id") == empresa_id), None)
+    if not e:
+        abort(404)
+
+    if nombre:
+        e["nombre"] = nombre
+    e["activa"] = activa
+
+    ed["empresas"] = empresas
+    _write_json(EMPRESAS_FILE, ed)
+    flash("Empresa actualizada.", "ok")
+    return redirect(url_for("sa_config"))
+
+@app.route("/sa/proyecto/<int:proyecto_id>/editar", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_proyecto_editar(прoyecto_id=None, proyecto_id=None):
+    # (compat) por si algún editor mete caracteres raros; usamos proyecto_id real
+    proyecto_id = proyecto_id if proyecto_id is not None else int(прoyecto_id)
+
+    pd_ = proyectos_data()
+    proyectos = pd_["proyectos"]
+
+    nombre = (request.form.get("nombre") or "").strip()
+    terminado = _bool(request.form.get("terminado"))
+
+    p = next((x for x in proyectos if x.get("id") == proyecto_id), None)
+    if not p:
+        abort(404)
+
+    if nombre:
+        p["nombre"] = nombre
+
+    if terminado:
+        p["terminado"] = True
+        p["fecha_termino"] = datetime.now().strftime("%Y-%m-%d")
+    else:
+        p["terminado"] = False
+        p.pop("fecha_termino", None)
+
+    pd_["proyectos"] = proyectos
+    _write_json(PROYECTOS_FILE, pd_)
+    flash("Proyecto actualizado.", "ok")
+    return redirect(url_for("sa_config"))
 
 @app.route("/sa/proyecto/<int:proyecto_id>/eliminar", methods=["POST"])
 @login_required
 @require_roles("superadmin")
-def sa_proyecto_eliminar(proyecto_id):
+def sa_proyecto_eliminar_post(proyecto_id):
     pd_ = proyectos_data()
     proyectos = pd_["proyectos"]
     proyectos = [p for p in proyectos if p.get("id") != proyecto_id]
@@ -666,7 +753,77 @@ def sa_proyecto_eliminar(proyecto_id):
 
     _safe_remove(tareas_file(proyecto_id))
     flash("Proyecto eliminado (y archivo de tareas asociado).", "ok")
-    return redirect(url_for("sa_proyectos"))
+    return redirect(url_for("sa_config"))
+
+@app.route("/sa/usuario/<int:user_id>/editar", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_usuario_editar(user_id):
+    ud = usuarios_data()
+    usuarios = ud["usuarios"]
+
+    nombre = (request.form.get("nombre") or "").strip()
+    correo = (request.form.get("correo") or "").strip().lower()
+    rol = (request.form.get("rol") or "").strip().lower()
+
+    u = next((x for x in usuarios if x.get("id") == user_id), None)
+    if not u:
+        abort(404)
+
+    if nombre:
+        u["nombre"] = nombre
+
+    if correo:
+        existe = any((x.get("id") != user_id and (x.get("correo", "").strip().lower() == correo)) for x in usuarios)
+        if existe:
+            flash("Ese correo ya existe en otro usuario.", "error")
+            return redirect(url_for("sa_config"))
+        u["correo"] = correo
+
+    if rol in ("superadmin", "supervisor", "ejecutor"):
+        u["rol"] = rol
+        if rol == "superadmin":
+            u["empresa_id"] = None
+
+    ud["usuarios"] = usuarios
+    _write_json(USUARIOS_FILE, ud)
+    flash("Usuario actualizado.", "ok")
+    return redirect(url_for("sa_config"))
+
+@app.route("/sa/usuario/<int:user_id>/reset-password", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_usuario_reset_password(user_id):
+    ud = usuarios_data()
+    usuarios = ud["usuarios"]
+
+    new_pass = request.form.get("new_password") or ""
+    if len(new_pass) < 6:
+        flash("La nueva contraseña debe tener al menos 6 caracteres.", "error")
+        return redirect(url_for("sa_config"))
+
+    u = next((x for x in usuarios if x.get("id") == user_id), None)
+    if not u:
+        abort(404)
+
+    u["password_hash"] = generate_password_hash(new_pass)
+    ud["usuarios"] = usuarios
+    _write_json(USUARIOS_FILE, ud)
+
+    flash("Contraseña reseteada ✅", "ok")
+    return redirect(url_for("sa_config"))
+
+@app.route("/sa/usuario/<int:user_id>/eliminar", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_usuario_eliminar_post(user_id):
+    ud = usuarios_data()
+    usuarios = ud["usuarios"]
+    usuarios = [u for u in usuarios if u.get("id") != user_id]
+    ud["usuarios"] = usuarios
+    _write_json(USUARIOS_FILE, ud)
+    flash("Usuario eliminado.", "ok")
+    return redirect(url_for("sa_config"))
 
 # ================= DASHBOARD EMPRESA =================
 @app.route("/empresa")
@@ -679,7 +836,12 @@ def empresa_dashboard():
     proyectos = proyectos_data()["proyectos"]
 
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
-    proys = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id")]
+
+    # ocultar terminados
+    proys = [
+        p for p in proyectos
+        if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
+    ]
 
     avances = []
     for p in proys:
@@ -702,13 +864,17 @@ def empresa_dashboard():
 def seleccionar_proyecto():
     u = current_user()
     proyectos = proyectos_data()["proyectos"]
-    proys = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id")]
+
+    # ocultar terminados
+    proys = [
+        p for p in proyectos
+        if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
+    ]
 
     if not proys:
-        flash("Tu empresa no tiene proyectos creados. Pide al Superadmin que cree uno.", "error")
+        flash("Tu empresa no tiene proyectos activos. Pide al Superadmin que cree o reactive uno.", "error")
         return redirect(url_for("empresa_dashboard"))
 
-    # Si solo hay 1 proyecto, selección automática
     if len(proys) == 1:
         pid = int(proys[0]["id"])
         set_active_project(pid)
@@ -745,6 +911,11 @@ def cambiar_proyecto():
 @require_roles("supervisor", "ejecutor", "superadmin")
 def empresa_ir_proyecto(proyecto_id):
     u = current_user()
+
+    # superadmin puede entrar a terminados (si quisiera), otros NO
+    if u.get("rol") != "superadmin" and _is_project_terminated(proyecto_id):
+        abort(403)
+
     if not user_can_access_project(u, proyecto_id):
         abort(403)
 
