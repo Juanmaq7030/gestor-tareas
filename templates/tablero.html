@@ -39,22 +39,26 @@
   <div class="proyecto-selector" style="display:flex; align-items:center; gap:8px;">
     📁 <span>Proyecto:</span>
 
-    <select class="selector-proyecto"
-            onchange="cambiarProyecto(this)"
-            style="padding:6px 10px; border-radius:8px; border:1px solid #ccc; cursor:pointer;">
+   <select class="selector-proyecto"
+        onchange="cambiarProyecto(this)"
+        style="padding:6px 10px; border-radius:8px; border:1px solid #ccc; cursor:pointer;">
 
-      {% for p in proyectos_usuario %}
-        <option value="{{ p.id }}" {% if p.id == proyecto_id %}selected{% endif %}>
-          {{ p.nombre }}
+    {% for p in proyectos_usuario %}
+        <option value="{{ p.id }}"
+            {% if p.id == proyecto_id %}selected{% endif %}>
+            {{ p.nombre }}
         </option>
-      {% endfor %}
+    {% endfor %}
 
-    </select>
-  </div>
-
-</div>
+</select>
 
 <script>
+function cambiarProyecto(select){
+    const proyectoId = select.value;
+    window.location.href = "/empresa/ir/" + proyectoId;
+}
+</script>
+
 function cambiarProyecto(select){
     const proyectoId = select.value;
     window.location.href = "/empresa/ir/" + proyectoId;
