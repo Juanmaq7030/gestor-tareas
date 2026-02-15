@@ -1023,6 +1023,14 @@ def proyecto_tablero(proyecto_id):
     responsables_unicos = sorted(set([t.get('responsable', '') for t in tareas if t.get('responsable')]))
     centros_unicos = sorted(set([t.get('centro_responsabilidad', '') for t in tareas if t.get('centro_responsabilidad')]))
 
+u = current_user()
+
+empresas = empresas_data()["empresas"]
+empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
+
+proyectos = proyectos_data()["proyectos"]
+proyectos_usuario = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id")]
+   
     return render_template(
         "tablero.html",
         tareas=tareas_filtradas,
