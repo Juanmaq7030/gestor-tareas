@@ -1,6 +1,8 @@
-Flask
-gunicorn
-Werkzeug
+Flask==3.0.3
+gunicorn==21.2.0
+Werkzeug==3.0.3
+
+
 
 
 
