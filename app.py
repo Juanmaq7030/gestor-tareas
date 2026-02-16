@@ -997,16 +997,10 @@ def uploads(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 # ================= PROYECTO: TABLERO =================
-# ================= PROYECTO: TABLERO =================
-@app.route("/p/<int:proyecto_id>/tablero")
+@app.route("/sa/proyecto/<int:proyecto_id>/editar", methods=["POST"])
 @login_required
-@require_project_access
-@no_cache
-@app.route("/p/<int:proyecto_id>/tablero")
-@login_required
-@require_project_access
-@no_cache
-def proyecto_tablero(proyecto_id):
+@require_roles("superadmin")
+def sa_proyecto_editar(proyecto_id):
     tareas, _ = load_tareas(proyecto_id)
 
     centro_filtro = request.args.get('centro', 'Todos')
