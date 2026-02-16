@@ -997,6 +997,7 @@ def uploads(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 # ================= PROYECTO: TABLERO =================
+# ================= PROYECTO: TABLERO =================
 @app.route("/p/<int:proyecto_id>/tablero")
 @login_required
 @require_project_access
@@ -1009,17 +1010,19 @@ def proyecto_tablero(proyecto_id):
     estado_filtro = request.args.get('estado', 'Todos')
     plazo_filtro = request.args.get('plazo', 'Todos')
 
-    # 🔵 Obtener empresa del usuario (para mostrar nombre arriba)
+    # 🔵 Usuario actual + empresa + proyectos (para el selector de proyecto)
     u = current_user()
 
     empresas = empresas_data()["empresas"]
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
 
-    # 🔵 Obtener TODOS los proyectos de esa empresa (para el selector)
     proyectos = proyectos_data()["proyectos"]
-    proyectos_usuario = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id")]
+    # Solo proyectos activos (no terminados) para supervisor/ejecutor
+    proyectos_usuario = [
+        p for p in proyectos
+        if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
+    ]
 
-    
     tareas_filtradas = filtrar_tareas(
         tareas,
         centro=centro_filtro if centro_filtro != 'Todos' else None,
@@ -1034,15 +1037,7 @@ def proyecto_tablero(proyecto_id):
     responsables_unicos = sorted(set([t.get('responsable', '') for t in tareas if t.get('responsable')]))
     centros_unicos = sorted(set([t.get('centro_responsabilidad', '') for t in tareas if t.get('centro_responsabilidad')]))
 
-u = current_user()
-
-empresas = empresas_data()["empresas"]
-empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
-
-proyectos = proyectos_data()["proyectos"]
-proyectos_usuario = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id")]
-   
-       return render_template(
+    return render_template(
         "tablero.html",
         tareas=tareas_filtradas,
         estadisticas=estadisticas,
@@ -1057,11 +1052,10 @@ proyectos_usuario = [p for p in proyectos if p.get("empresa_id") == u.get("empre
             "plazo": plazo_filtro
         },
         proyecto_id=proyecto_id,
-        user=current_user(),
+        user=u,
         empresa_nombre=empresa.get("nombre") if empresa else "",
         proyectos_usuario=proyectos_usuario
     )
-
 
 # ================= PROYECTO: INFORME =================
 @app.route("/p/<int:proyecto_id>/informe")
