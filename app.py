@@ -156,7 +156,6 @@ def user_can_access_project(u, proyecto_id: int) -> bool:
     p = _get_project(int(proyecto_id))
     if not p:
         return False
-    # bloquea acceso a proyectos terminados para no-superadmin
     if p.get("terminado", False):
         return False
     return p.get("empresa_id") == u.get("empresa_id")
@@ -643,9 +642,7 @@ def sa_empresa_eliminar(empresa_id):
     flash("Empresa eliminada (con proyectos/usuarios asociados).", "ok")
     return redirect(url_for("sa_config"))
 
-# =======================
-# SUPERADMIN: CONFIG PANEL (CRUD)
-# =======================
+# ======================= SUPERADMIN: CONFIG PANEL (CRUD) =======================
 def _bool(v):
     return str(v).strip().lower() in ("1", "true", "on", "yes", "si", "sí")
 
@@ -734,10 +731,6 @@ def sa_proyecto_editar(proyecto_id):
         p.pop("fecha_termino", None)
 
     pd_["proyectos"] = proyectos
-    _write_json(PROYECTOS_FILE, pd_)
-    flash("Proyecto actualizado.", "ok")
-    return redirect(url_for("sa_config"))
-
     _write_json(PROYECTOS_FILE, pd_)
     flash("Proyecto actualizado.", "ok")
     return redirect(url_for("sa_config"))
@@ -838,7 +831,6 @@ def empresa_dashboard():
 
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
 
-    # ocultar terminados
     proys = [
         p for p in proyectos
         if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
@@ -866,7 +858,6 @@ def seleccionar_proyecto():
     u = current_user()
     proyectos = proyectos_data()["proyectos"]
 
-    # ocultar terminados
     proys = [
         p for p in proyectos
         if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
@@ -913,7 +904,6 @@ def cambiar_proyecto():
 def empresa_ir_proyecto(proyecto_id):
     u = current_user()
 
-    # superadmin puede entrar a terminados (si quisiera), otros NO
     if u.get("rol") != "superadmin" and _is_project_terminated(proyecto_id):
         abort(403)
 
@@ -998,10 +988,11 @@ def uploads(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 # ================= PROYECTO: TABLERO =================
-@app.route("/sa/proyecto/<int:proyecto_id>/editar", methods=["POST"])
+@app.route("/p/<int:proyecto_id>/tablero")
 @login_required
-@require_roles("superadmin")
-def sa_proyecto_editar(proyecto_id):
+@require_project_access
+@no_cache
+def proyecto_tablero(proyecto_id):
     tareas, _ = load_tareas(proyecto_id)
 
     centro_filtro = request.args.get('centro', 'Todos')
@@ -1009,8 +1000,8 @@ def sa_proyecto_editar(proyecto_id):
     estado_filtro = request.args.get('estado', 'Todos')
     plazo_filtro = request.args.get('plazo', 'Todos')
 
-    # Datos para "Empresa" y selector de proyectos (solo empresa del usuario)
     u = current_user()
+
     empresas = empresas_data()["empresas"]
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
 
@@ -1053,7 +1044,6 @@ def sa_proyecto_editar(proyecto_id):
         empresa_nombre=empresa.get("nombre") if empresa else "",
         proyectos_usuario=proyectos_usuario
     )
-
 
 # ================= PROYECTO: INFORME =================
 @app.route("/p/<int:proyecto_id>/informe")
