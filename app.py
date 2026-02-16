@@ -1002,6 +1002,10 @@ def uploads(filename):
 @login_required
 @require_project_access
 @no_cache
+@app.route("/p/<int:proyecto_id>/tablero")
+@login_required
+@require_project_access
+@no_cache
 def proyecto_tablero(proyecto_id):
     tareas, _ = load_tareas(proyecto_id)
 
@@ -1010,14 +1014,12 @@ def proyecto_tablero(proyecto_id):
     estado_filtro = request.args.get('estado', 'Todos')
     plazo_filtro = request.args.get('plazo', 'Todos')
 
-    # 🔵 Usuario actual + empresa + proyectos (para el selector de proyecto)
+    # Datos para "Empresa" y selector de proyectos (solo empresa del usuario)
     u = current_user()
-
     empresas = empresas_data()["empresas"]
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
 
     proyectos = proyectos_data()["proyectos"]
-    # Solo proyectos activos (no terminados) para supervisor/ejecutor
     proyectos_usuario = [
         p for p in proyectos
         if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
@@ -1056,6 +1058,7 @@ def proyecto_tablero(proyecto_id):
         empresa_nombre=empresa.get("nombre") if empresa else "",
         proyectos_usuario=proyectos_usuario
     )
+
 
 # ================= PROYECTO: INFORME =================
 @app.route("/p/<int:proyecto_id>/informe")
