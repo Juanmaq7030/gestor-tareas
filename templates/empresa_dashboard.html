@@ -1,158 +1,169 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Empresa - Proyectos</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Empresa · Panel de Proyectos</title>
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
   <style>
-    .topbar {
-      display:flex; gap:16px; align-items:center; flex-wrap:wrap;
-      padding:12px 14px; border:1px solid rgba(0,0,0,.08);
-      border-radius:14px; background: rgba(255,255,255,.7);
-      backdrop-filter: blur(6px);
-      margin-bottom:16px;
+    .card {
+      background: #fff;
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,.08);
     }
-    .topbar .brand { display:flex; gap:10px; align-items:center; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .avance {
+      font-size: 28px;
+      font-weight: bold;
+      color: #2c7be5;
+    }
+    .muted {
+      color: #666;
+      font-size: 14px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 14px;
+      background: #2c7be5;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    .btn.secondary { background: #6c757d; }
+
+    /* ✅ TOP BAR / “Mística ERP” */
+    .topbar {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      flex-wrap:wrap;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.8);
+      box-shadow: 0 6px 18px rgba(0,0,0,.06);
+      border: 1px solid rgba(0,0,0,.08);
+      margin-bottom: 18px;
+    }
+    .topbar-left {
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .context-row {
+      display:flex;
+      gap:12px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
     .pill {
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
       border:1px solid rgba(0,0,0,.10);
+      background:#fff;
+      font-weight:700;
+    }
+    .selector {
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid rgba(0,0,0,.18);
+      cursor:pointer;
       background:#fff;
       font-weight:600;
     }
-    .grid {
-      display:grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap:14px;
-    }
-    .card {
-      border:1px solid rgba(0,0,0,.10);
-      border-radius:16px;
-      padding:14px;
-      background:#fff;
-      box-shadow: 0 8px 20px rgba(0,0,0,.05);
-    }
-    .card h3 { margin:0 0 8px 0; }
-    .muted { opacity:.75; }
-    .progress {
-      height:10px; border-radius:999px; background:rgba(0,0,0,.08);
-      overflow:hidden; margin:10px 0 8px 0;
-    }
-    .progress > div {
-      height:100%;
-      width:0%;
-      border-radius:999px;
-      background: linear-gradient(90deg, #0d6efd, #00c2ff);
-    }
-    .actions {
-      display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;
-    }
-    .btn {
-      display:inline-flex; align-items:center; justify-content:center;
-      padding:10px 12px; border-radius:12px; border:0;
-      cursor:pointer; text-decoration:none; font-weight:700;
-    }
-    .btn.primary { background:#0d6efd; color:#fff; }
-    .btn.secondary { background:rgba(13,110,253,.12); color:#0d6efd; }
-    .btn.outline { background:#fff; color:#0d6efd; border:1px solid rgba(13,110,253,.35); }
-    .selector {
-      padding:8px 10px; border-radius:12px;
-      border:1px solid rgba(0,0,0,.16);
-      background:#fff; cursor:pointer;
-    }
-    .spacer { flex:1; }
   </style>
 </head>
 
 <body>
-  <div class="container">
+<div class="container">
 
-    <!-- TOP BAR -->
-    <div class="topbar">
-      <div class="brand">
-        <div class="pill">🏢 <span>{{ empresa.nombre if empresa else "Empresa" }}</span></div>
-        <div class="pill">👤 <span>{{ user.nombre if user else "Usuario" }}</span></div>
-        <div class="pill">🔐 <span>{{ user.rol|capitalize if user and user.rol else "-" }}</span></div>
+  <!-- ✅ TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="pill">
+        🏢 <span>{{ empresa.nombre if empresa else "Empresa" }}</span>
       </div>
 
-      <div class="spacer"></div>
+      <div class="context-row">
+        <div class="pill">👤 {{ user.nombre if user else "Usuario" }}</div>
+        <div class="pill">🔐 {{ user.rol if user and user.rol else "-" }}</div>
 
-      <!-- Selector rápido (solo si hay más de 1 proyecto) -->
-      {% if avances|length > 1 %}
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <span class="muted">📁 Cambiar proyecto:</span>
-        <select class="selector" onchange="irProyecto(this)">
-          <option value="" selected disabled>Selecciona un proyecto…</option>
-          {% for item in avances %}
-            <option value="{{ item.proyecto.id }}">{{ item.proyecto.nombre }}</option>
-          {% endfor %}
-        </select>
+        <!-- ✅ Selector rápido (solo si hay más de 1 proyecto) -->
+        {% if avances and avances|length > 1 %}
+          <div class="pill">
+            📁 <span>Cambiar proyecto:</span>
+            <select class="selector" onchange="cambiarProyecto(this)">
+              <option value="" selected disabled>Selecciona…</option>
+              {% for item in avances %}
+                <option value="{{ item.proyecto.id }}">{{ item.proyecto.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
       </div>
-      {% endif %}
-
-      <a class="btn outline" href="{{ url_for('logout') }}">Salir</a>
     </div>
 
-    <h1 style="margin:0 0 12px 0;">📌 Proyectos disponibles</h1>
-    <p class="muted" style="margin-top:0;">
-      Selecciona un proyecto para entrar. Cada tarjeta muestra el avance calculado según tareas completadas + validadas.
-    </p>
-
-    {% if avances %}
-    <div class="grid">
-      {% for item in avances %}
-      <div class="card">
-        <h3>📁 {{ item.proyecto.nombre }}</h3>
-
-        <div class="muted">
-          Total tareas: <strong>{{ item.estadisticas.total }}</strong> ·
-          Vencidas: <strong>{{ item.estadisticas.vencidas }}</strong> ·
-          Sin plazo: <strong>{{ item.estadisticas.sin_plazo }}</strong>
-        </div>
-
-        <div class="progress" aria-label="Avance">
-          <div style="width: {{ item.avance_pct }}%;"></div>
-        </div>
-
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <div class="pill">✅ Avance: {{ item.avance_pct }}%</div>
-          <div class="pill">🟣 Validadas: {{ item.estadisticas.por_estado.get('Validada', 0) }}</div>
-          <div class="pill">🟢 Completadas: {{ item.estadisticas.por_estado.get('Completada', 0) }}</div>
-        </div>
-
-        <div class="actions">
-          <!-- Entra al proyecto (ruta que además setea project_id en sesión) -->
-          <a class="btn primary" href="/empresa/ir/{{ item.proyecto.id }}">Entrar al proyecto</a>
-
-          <!-- Si quieres: botón directo al tablero (solo útil para supervisor) -->
-          {% if user and user.rol == "supervisor" %}
-            <a class="btn secondary" href="{{ url_for('proyecto_tablero', proyecto_id=item.proyecto.id) }}">Ir al Tablero</a>
-          {% else %}
-            <a class="btn secondary" href="{{ url_for('proyecto_index', proyecto_id=item.proyecto.id) }}">Ver Tareas</a>
-          {% endif %}
-        </div>
-      </div>
-      {% endfor %}
+    <div>
+      <a class="btn secondary" href="{{ url_for('logout') }}">Salir</a>
     </div>
-    {% else %}
-      <div class="card">
-        <h3>⚠️ Sin proyectos activos</h3>
-        <p class="muted">
-          Tu empresa no tiene proyectos activos. Pide al Superadmin que cree o reactive uno.
-        </p>
+  </header>
+
+  <section class="grid">
+
+    {% for item in avances %}
+    <div class="card">
+      <h2 style="margin-top:0;">📁 {{ item.proyecto.nombre }}</h2>
+
+      <p class="muted">
+        Total tareas: {{ item.estadisticas.total }}<br>
+        Completadas: {{ item.estadisticas.por_estado.get('Completada', 0) }}<br>
+        Validadas: {{ item.estadisticas.por_estado.get('Validada', 0) }}
+      </p>
+
+      <div class="avance">{{ item.avance_pct }}%</div>
+      <p class="muted">Avance del proyecto</p>
+
+      <div style="margin-top:12px;">
+        {% if user.rol == 'supervisor' %}
+          <a class="btn" href="{{ url_for('empresa_ir_proyecto', proyecto_id=item.proyecto.id) }}">
+            📊 Ir al Tablero
+          </a>
+        {% else %}
+          <a class="btn" href="{{ url_for('empresa_ir_proyecto', proyecto_id=item.proyecto.id) }}">
+            📋 Ir a Tareas
+          </a>
+        {% endif %}
       </div>
-    {% endif %}
+    </div>
+    {% endfor %}
 
-  </div>
+  </section>
 
-  <script>
-    function irProyecto(select){
-      const id = select.value;
-      if(!id) return;
-      window.location.href = "/empresa/ir/" + id;
-    }
-  </script>
+</div>
+
+<script>
+  function cambiarProyecto(select){
+    const proyectoId = select.value;
+    if(!proyectoId) return;
+    window.location.href = "/empresa/ir/" + proyectoId;
+  }
+</script>
+
 </body>
 </html>
-
