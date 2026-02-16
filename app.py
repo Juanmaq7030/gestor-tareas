@@ -156,6 +156,7 @@ def user_can_access_project(u, proyecto_id: int) -> bool:
     p = _get_project(int(proyecto_id))
     if not p:
         return False
+    # bloquea acceso a proyectos terminados para no-superadmin
     if p.get("terminado", False):
         return False
     return p.get("empresa_id") == u.get("empresa_id")
@@ -642,7 +643,9 @@ def sa_empresa_eliminar(empresa_id):
     flash("Empresa eliminada (con proyectos/usuarios asociados).", "ok")
     return redirect(url_for("sa_config"))
 
-# ======================= SUPERADMIN: CONFIG PANEL (CRUD) =======================
+# =======================
+# SUPERADMIN: CONFIG PANEL (CRUD)
+# =======================
 def _bool(v):
     return str(v).strip().lower() in ("1", "true", "on", "yes", "si", "sí")
 
@@ -831,6 +834,7 @@ def empresa_dashboard():
 
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
 
+    # ocultar terminados
     proys = [
         p for p in proyectos
         if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
@@ -858,6 +862,7 @@ def seleccionar_proyecto():
     u = current_user()
     proyectos = proyectos_data()["proyectos"]
 
+    # ocultar terminados
     proys = [
         p for p in proyectos
         if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
@@ -904,6 +909,7 @@ def cambiar_proyecto():
 def empresa_ir_proyecto(proyecto_id):
     u = current_user()
 
+    # superadmin puede entrar a terminados (si quisiera), otros NO
     if u.get("rol") != "superadmin" and _is_project_terminated(proyecto_id):
         abort(403)
 
@@ -1000,12 +1006,14 @@ def proyecto_tablero(proyecto_id):
     estado_filtro = request.args.get('estado', 'Todos')
     plazo_filtro = request.args.get('plazo', 'Todos')
 
+    # Usuario actual + empresa + proyectos (para el selector de proyecto)
     u = current_user()
 
     empresas = empresas_data()["empresas"]
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
 
     proyectos = proyectos_data()["proyectos"]
+    # Solo proyectos activos (no terminados) para supervisor/ejecutor
     proyectos_usuario = [
         p for p in proyectos
         if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
