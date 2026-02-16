@@ -1042,25 +1042,25 @@ empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None
 proyectos = proyectos_data()["proyectos"]
 proyectos_usuario = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id")]
    
-   return render_template(
-    "tablero.html",
-    tareas=tareas_filtradas,
-    estadisticas=estadisticas,
-    estadisticas_totales=estadisticas_totales,
-    estados=ESTADOS,
-    responsables=responsables_unicos,
-    centros=centros_unicos,
-    filtros={
-        "centro": centro_filtro,
-        "responsable": responsable_filtro,
-        "estado": estado_filtro,
-        "plazo": plazo_filtro
-    },
-    proyecto_id=proyecto_id,
-    user=current_user(),
-    empresa_nombre=empresa.get("nombre") if empresa else "",
-    proyectos_usuario=proyectos_usuario
-)
+       return render_template(
+        "tablero.html",
+        tareas=tareas_filtradas,
+        estadisticas=estadisticas,
+        estadisticas_totales=estadisticas_totales,
+        estados=ESTADOS,
+        responsables=responsables_unicos,
+        centros=centros_unicos,
+        filtros={
+            "centro": centro_filtro,
+            "responsable": responsable_filtro,
+            "estado": estado_filtro,
+            "plazo": plazo_filtro
+        },
+        proyecto_id=proyecto_id,
+        user=current_user(),
+        empresa_nombre=empresa.get("nombre") if empresa else "",
+        proyectos_usuario=proyectos_usuario
+    )
 
 
 # ================= PROYECTO: INFORME =================
