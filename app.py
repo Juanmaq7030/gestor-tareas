@@ -715,6 +715,9 @@ def sa_empresa_editar(empresa_id):
 @app.route("/sa/proyecto/<int:proyecto_id>/editar", methods=["POST"])
 @login_required
 @require_roles("superadmin")
+@app.route("/sa/proyecto/<int:proyecto_id>/editar", methods=["POST"])
+@login_required
+@require_roles("superadmin")
 def sa_proyecto_editar(proyecto_id):
     pd_ = proyectos_data()
     proyectos = pd_["proyectos"]
