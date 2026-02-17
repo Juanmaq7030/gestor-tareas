@@ -998,48 +998,34 @@ def seleccionar_proyecto():
 
     return render_template("seleccionar_proyecto.html", proyectos=proys, user=u)
 
-@app.route("/seleccionar-proyecto/<int:proyecto_id>", methods=["POST"])
+@app.route("/sa/proyecto/<int:proyecto_id>/editar", methods=["POST"])
 @login_required
-@require_roles("supervisor", "ejecutor")
-def seleccionar_proyecto_post(proyecto_id):
-    u = current_user()
-    if not user_can_access_project(u, proyecto_id):
-        abort(403)
+@require_roles("superadmin")
+def sa_proyecto_editar(proyecto_id):
+    pd_ = proyectos_data()
+    proyectos = pd_["proyectos"]
 
-    set_active_project(proyecto_id)
+    nombre = (request.form.get("nombre") or "").strip()
+    terminado = _bool(request.form.get("terminado"))
 
-    if u.get("rol") == "supervisor":
-        return redirect(url_for("proyecto_tablero", proyecto_id=proyecto_id))
-    return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
+    p = next((x for x in proyectos if x.get("id") == proyecto_id), None)
+    if not p:
+        abort(404)
 
-@app.route("/cambiar-proyecto", methods=["POST"])
-@login_required
-@require_roles("supervisor", "ejecutor")
-def cambiar_proyecto():
-    clear_active_project()
-    # ✅ volver al panel Empresa (lista de proyectos)
-    return redirect(url_for("empresa_dashboard"))
+    if nombre:
+        p["nombre"] = nombre
 
-# ✅ Atajo para entrar a un proyecto desde empresa_dashboard.html
-@app.route("/empresa/ir/<int:proyecto_id>")
-@login_required
-@require_roles("supervisor", "ejecutor", "superadmin")
-def empresa_ir_proyecto(proyecto_id):
-    u = current_user()
+    if terminado:
+        p["terminado"] = True
+        p["fecha_termino"] = datetime.now().strftime("%Y-%m-%d")
+    else:
+        p["terminado"] = False
+        p.pop("fecha_termino", None)
 
-    # superadmin puede entrar a terminados (si quisiera), otros NO
-    if u.get("rol") != "superadmin" and _is_project_terminated(proyecto_id):
-        abort(403)
-
-    if not user_can_access_project(u, proyecto_id):
-        abort(403)
-
-    if u.get("rol") != "superadmin":
-        set_active_project(proyecto_id)
-
-    if u.get("rol") == "supervisor":
-        return redirect(url_for("proyecto_tablero", proyecto_id=proyecto_id))
-    return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
+    pd_["proyectos"] = proyectos
+    _write_json(PROYECTOS_FILE, pd_)
+    flash("Proyecto actualizado.", "ok")
+    return redirect(url_for("sa_config"))
 
 # ================= PROYECTO: PLANIFICADOR =================
 @app.route("/p/<int:proyecto_id>/")
