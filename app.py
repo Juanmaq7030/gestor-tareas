@@ -825,6 +825,8 @@ def sa_proyecto_editar(proyecto_id):
     if not p:
         abort(404)
 
+    empresa_id = p.get("empresa_id")  # ✅ clave para volver a la empresa correcta
+
     if nombre:
         p["nombre"] = nombre
 
@@ -835,13 +837,10 @@ def sa_proyecto_editar(proyecto_id):
         p["terminado"] = False
         p.pop("fecha_termino", None)
 
-    empresa_id = p.get("empresa_id")
-
     pd_["proyectos"] = proyectos
     _write_json(PROYECTOS_FILE, pd_)
     flash("Proyecto actualizado.", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
-
 
 @app.route("/sa/proyecto/<int:proyecto_id>/eliminar", methods=["POST"])
 @login_required
@@ -851,16 +850,18 @@ def sa_proyecto_eliminar_post(proyecto_id):
     proyectos = pd_["proyectos"]
 
     p = next((x for x in proyectos if x.get("id") == proyecto_id), None)
-    empresa_id = p.get("empresa_id") if p else None
+    if not p:
+        abort(404)
 
-    proyectos = [pp for pp in proyectos if pp.get("id") != proyecto_id]
+    empresa_id = p.get("empresa_id")  # ✅ para volver a la empresa correcta
+
+    proyectos = [x for x in proyectos if x.get("id") != proyecto_id]
     pd_["proyectos"] = proyectos
     _write_json(PROYECTOS_FILE, pd_)
 
     _safe_remove(tareas_file(proyecto_id))
     flash("Proyecto eliminado (y archivo de tareas asociado).", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
-
 
 @app.route("/sa/empresa/<int:empresa_id>/usuario/nuevo", methods=["POST"])
 @login_required
