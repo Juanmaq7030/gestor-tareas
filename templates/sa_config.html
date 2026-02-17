@@ -1,59 +1,217 @@
-@app.route("/sa/config")
-@login_required
-@require_roles("superadmin")
-@no_cache
-def sa_config():
-    ed = empresas_data()
-    pd_ = proyectos_data()
-    ud = usuarios_data()
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Superadmin · Configuración</title>
+  <style>
+    body{font-family:Arial, sans-serif; margin:18px; background:#f6f7fb; color:#222;}
+    .wrap{max-width:1100px; margin:0 auto;}
+    .top{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;}
+    .card{background:#fff; border-radius:14px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.08); margin:14px 0;}
+    h1{margin:0;}
+    h2{margin:0 0 10px 0;}
+    .muted{color:#666; margin:6px 0 0 0;}
+    .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+    @media (max-width: 900px){ .grid{grid-template-columns:1fr;} }
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    input, select{padding:10px; border:1px solid #ddd; border-radius:10px; width:100%;}
+    .w-auto{width:auto;}
+    .btn{padding:10px 12px; border:0; border-radius:10px; cursor:pointer; font-weight:700; display:inline-block;}
+    .btn.primary{background:#1f6feb; color:#fff;}
+    .btn.gray{background:#6c757d; color:#fff;}
+    .btn.red{background:#dc3545; color:#fff;}
+    .btn.orange{background:#fd7e14; color:#fff;}
+    .pill{display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; background:#eef2ff;}
+    .sep{height:1px; background:#eee; margin:12px 0;}
+    a{color:#1f6feb; text-decoration:none;}
+    .mini{font-size:12px; color:#666;}
+    .box{border:1px solid #eee; border-radius:12px; padding:12px; margin-top:10px;}
+    .danger{background:#fff5f5; border-color:#ffd5d5;}
+    .right-meta{margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
 
-    empresas = ed.get("empresas", [])
-    proyectos = pd_.get("proyectos", [])
-    usuarios = ud.get("usuarios", [])
+    <div class="top">
+      <div>
+        <h1>🛠 Superadmin · Configuración</h1>
+        <p class="muted">Data: {{ data_dir }}</p>
+      </div>
+      <div class="row">
+        <a class="btn gray" href="{{ url_for('sa_dashboard') }}">🏠 Inicio</a>
+        <a class="btn gray" href="{{ url_for('sa_empresa_nueva') }}">➕ Nueva Empresa</a>
+        <a class="btn gray" href="{{ url_for('logout') }}">🚪 Salir</a>
+      </div>
+    </div>
 
-    # Mapas por empresa (sirven igual aunque sea panel único)
-    proys_por_empresa = {}
-    for p in proyectos:
-        proys_por_empresa.setdefault(p.get("empresa_id"), []).append(p)
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="card">
+          {% for cat, msg in messages %}
+            <div class="mini"><strong>{{ cat|upper }}:</strong> {{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
 
-    users_por_empresa = {}
-    for u in usuarios:
-        users_por_empresa.setdefault(u.get("empresa_id"), []).append(u)
+    <div class="card">
+      <h2>🏢 Panel único por empresa</h2>
+      <p class="mini">Selecciona una empresa y gestiona sus proyectos y usuarios (máx. según licencia).</p>
 
-    # Ordenar empresas
-    empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
+      <!-- SELECTOR EMPRESA -->
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:12px 0;">
+        <form method="GET" action="{{ url_for('sa_config') }}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <label style="font-weight:700;">Seleccionar empresa:</label>
+          <select name="empresa_id" onchange="this.form.submit()" style="padding:10px; border-radius:10px; border:1px solid #ddd; min-width:280px;">
+            {% for e in empresas %}
+              <option value="{{ e.id }}" {% if empresa_sel and e.id == empresa_sel.id %}selected{% endif %}>
+                {{ e.nombre }} (ID {{ e.id }})
+              </option>
+            {% endfor %}
+          </select>
+        </form>
 
-    # empresa seleccionada (por querystring) o primera disponible
-    empresa_id_raw = request.args.get("empresa_id")
-    empresa_sel = None
-    if empresa_id_raw:
-        try:
-            eid = int(empresa_id_raw)
-            empresa_sel = next((e for e in empresas_sorted if e.get("id") == eid), None)
-        except Exception:
-            empresa_sel = None
+        {% if empresa_sel %}
+          <div class="right-meta">
+            <span style="color:#666;">
+              Usuarios: {{ usuarios_sel|length }}/{{ empresa_sel.licencia_max_usuarios }} ·
+              Proyectos: {{ proyectos_sel|length }}/{{ empresa_sel.licencia_max_proyectos }}
+            </span>
+          </div>
+        {% endif %}
+      </div>
 
-    if not empresa_sel and empresas_sorted:
-        empresa_sel = empresas_sorted[0]
+      {% if not empresa_sel %}
+        <div class="box danger">
+          No hay empresas creadas aún. Crea una empresa primero.
+        </div>
+      {% else %}
 
-    # Listados filtrados de la empresa seleccionada (si existe)
-    proyectos_sel = proys_por_empresa.get(empresa_sel.get("id"), []) if empresa_sel else []
-    usuarios_sel = users_por_empresa.get(empresa_sel.get("id"), []) if empresa_sel else []
+        <!-- EMPRESA -->
+        <div class="box {% if empresa_sel.get('activa', true) == false %}danger{% endif %}">
+          <div class="row" style="justify-content:space-between;">
+            <div>
+              <div><strong>Empresa:</strong> <span class="pill">ID {{ empresa_sel.id }}</span> {{ empresa_sel.nombre }}</div>
+              <div class="mini">
+                Estado:
+                {% if empresa_sel.get('activa', true) %}
+                  <strong>Activa</strong>
+                {% else %}
+                  <strong>Inactiva</strong>
+                {% endif %}
+              </div>
+            </div>
 
-    # Ordenar listados seleccionados
-    proyectos_sel = sorted(proyectos_sel, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
-    usuarios_sel = sorted(usuarios_sel, key=lambda x: (str(x.get("correo", "")).lower(), x.get("id", 0)))
+            <form class="row" method="POST" action="{{ url_for('sa_empresa_editar', empresa_id=empresa_sel.id) }}" style="min-width: 420px;">
+              <input name="nombre" placeholder="Nombre empresa" value="{{ empresa_sel.nombre }}">
+              <label class="mini w-auto">
+                <input type="checkbox" name="activa" {% if empresa_sel.get('activa', true) %}checked{% endif %}>
+                Activa
+              </label>
+              <button class="btn primary w-auto" type="submit">Guardar</button>
+            </form>
+          </div>
 
-    return render_template(
-        "sa_config.html",
-        empresas=empresas_sorted,
-        empresa_sel=empresa_sel,
-        proyectos_sel=proyectos_sel,
-        usuarios_sel=usuarios_sel,
-        data_dir=DATA_DIR,
-        # Mantengo también estos por si el template viejo los usa en algún bloque
-        proys_por_empresa=proys_por_empresa,
-        users_por_empresa=users_por_empresa,
-        proyectos=proyectos,
-        usuarios=usuarios
-    )
+          <div class="sep"></div>
+
+          <div class="grid">
+            <!-- PROYECTOS -->
+            <div>
+              <strong>📁 Proyectos</strong>
+              <div class="mini">Crear · Editar nombre · Terminar · Eliminar</div>
+
+              <form class="row" method="POST" action="{{ url_for('sa_proyecto_nuevo', empresa_id=empresa_sel.id) }}" style="margin-top:10px;">
+                <input name="nombre_proyecto" placeholder="Nombre del nuevo proyecto">
+                <button class="btn primary w-auto" type="submit">➕ Crear</button>
+              </form>
+
+              {% if not proyectos_sel %}
+                <div class="mini" style="margin-top:8px;">Sin proyectos.</div>
+              {% endif %}
+
+              {% for p in proyectos_sel %}
+                <div class="box" style="margin-top:10px;">
+                  <div class="mini"><span class="pill">ID {{ p.id }}</span></div>
+
+                  <form class="row" method="POST" action="{{ url_for('sa_proyecto_editar', proyecto_id=p.id) }}" style="margin-top:10px;">
+                    <input name="nombre" placeholder="Nombre proyecto" value="{{ p.nombre }}">
+                    <label class="mini w-auto">
+                      <input type="checkbox" name="terminado" {% if p.get('terminado', false) %}checked{% endif %}>
+                      Terminado
+                    </label>
+                    <button class="btn primary w-auto" type="submit">Guardar</button>
+                  </form>
+
+                  <form method="POST" action="{{ url_for('sa_proyecto_eliminar_post', proyecto_id=p.id) }}" onsubmit="return confirm('¿Eliminar proyecto y sus tareas?');" style="margin-top:10px;">
+                    <button class="btn red" type="submit">🗑 Eliminar proyecto</button>
+                  </form>
+                </div>
+              {% endfor %}
+            </div>
+
+            <!-- USUARIOS -->
+            <div>
+              <strong>👤 Usuarios</strong>
+              <div class="mini">Crear · Editar · Reset password · Eliminar</div>
+
+              <form class="row" method="POST" action="{{ url_for('sa_usuario_nuevo', empresa_id=empresa_sel.id) }}" style="margin-top:10px;">
+                <input name="nombre" placeholder="Nombre">
+                <input name="correo" placeholder="Correo" type="email">
+                <select class="w-auto" name="rol">
+                  <option value="supervisor">supervisor</option>
+                  <option value="ejecutor">ejecutor</option>
+                </select>
+                <input name="password" placeholder="Contraseña (mín 6)" type="text">
+                <button class="btn primary w-auto" type="submit">➕ Crear</button>
+              </form>
+
+              {% if not usuarios_sel %}
+                <div class="mini" style="margin-top:8px;">Sin usuarios.</div>
+              {% endif %}
+
+              {% for u in usuarios_sel %}
+                <div class="box" style="margin-top:10px;">
+                  <div class="mini"><span class="pill">ID {{ u.id }}</span> Rol: <strong>{{ u.rol }}</strong></div>
+
+                  <form class="row" method="POST" action="{{ url_for('sa_usuario_editar', user_id=u.id) }}" style="margin-top:10px;">
+                    <input name="nombre" placeholder="Nombre" value="{{ u.nombre }}">
+                    <input name="correo" placeholder="Correo" value="{{ u.correo }}">
+                    <select class="w-auto" name="rol">
+                      <option value="supervisor" {% if u.rol=='supervisor' %}selected{% endif %}>supervisor</option>
+                      <option value="ejecutor" {% if u.rol=='ejecutor' %}selected{% endif %}>ejecutor</option>
+                      <option value="superadmin" {% if u.rol=='superadmin' %}selected{% endif %}>superadmin</option>
+                    </select>
+                    <button class="btn primary w-auto" type="submit">Guardar</button>
+                  </form>
+
+                  <form class="row" method="POST" action="{{ url_for('sa_usuario_reset_password', user_id=u.id) }}" style="margin-top:10px;">
+                    <input name="new_password" placeholder="Nueva contraseña (mín 6)" type="text">
+                    <button class="btn orange w-auto" type="submit">🔑 Reset</button>
+                  </form>
+
+                  <form method="POST" action="{{ url_for('sa_usuario_eliminar_post', user_id=u.id) }}" onsubmit="return confirm('¿Eliminar usuario?');" style="margin-top:10px;">
+                    <button class="btn red" type="submit">🗑 Eliminar usuario</button>
+                  </form>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <form method="POST" action="{{ url_for('sa_empresa_eliminar', empresa_id=empresa_sel.id) }}" onsubmit="return confirm('⚠️ Esto elimina empresa + proyectos + usuarios + tareas. ¿Continuar?');">
+            <button class="btn red" type="submit">🧨 Eliminar EMPRESA completa</button>
+            <div class="mini" style="margin-top:6px;">Esto borra en cascada: proyectos, usuarios y archivos tareas_*.json.</div>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</body>
+</html>
