@@ -24,53 +24,54 @@
         <header>
   <h1>📊 Tablero de Control</h1>
 
-  <nav style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
-    <a href="{{ url_for('proyecto_index', proyecto_id=proyecto_id) }}">Inicio</a>
-    <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">Tablero de Control</a>
-    <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
-    <a href="{{ url_for('about') }}">Acerca de</a>
+ <nav style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+  <a href="{{ url_for('proyecto_index', proyecto_id=proyecto_id) }}">Inicio</a>
+  <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">Tablero de Control</a>
+  <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
+  <a href="{{ url_for('about') }}">Acerca de</a>
 
-    <!-- ✅ Selector Empresa + Proyecto -->
-    <div class="topbar-context" style="display:flex; gap:18px; align-items:center; flex-wrap:wrap; margin-left:auto;">
-      <div class="empresa-label">
-        🏢 <strong>{{ empresa_nombre }}</strong>
-      </div>
-
-      <div class="proyecto-selector" style="display:flex; align-items:center; gap:8px;">
-        📁 <span>Proyecto:</span>
-
-        <select class="selector-proyecto"
-                onchange="cambiarProyecto(this)"
-                style="padding:6px 10px; border-radius:8px; border:1px solid #ccc; cursor:pointer;">
-          {% for p in proyectos_usuario %}
-            <option value="{{ p.id }}" {% if p.id == proyecto_id %}selected{% endif %}>
-              {{ p.nombre }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <!-- ✅ Botón cambiar proyecto (vuelve a seleccionar) -->
-      <form class="inline" method="POST" action="{{ url_for('cambiar_proyecto') }}">
-        <button class="btn small secondary" type="submit">🔁 Cambiar proyecto</button>
-      </form>
+  <!-- Contexto Empresa + Selector Proyecto -->
+  <div class="topbar-context" style="display:flex; gap:14px; align-items:center; margin-left:auto; flex-wrap:wrap;">
+    <div class="empresa-label">
+      🏢 <strong>{{ empresa_nombre }}</strong>
     </div>
-  </nav>
-</header>
+
+    <div class="proyecto-selector" style="display:flex; align-items:center; gap:8px;">
+      📁 <strong>Proyecto:</strong>
+
+      <select id="selectorProyecto"
+              class="selector-proyecto"
+              style="padding:6px 10px; border-radius:8px; border:1px solid #ccc; cursor:pointer;"
+              onchange="cambiarProyecto()">
+        <option value="">-- Selecciona --</option>
+        {% for p in proyectos_usuario %}
+          <option value="{{ p.id }}" {% if p.id == proyecto_id %}selected{% endif %}>
+            {{ p.nombre }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- ✅ ESTE BOTÓN debe volver al panel Empresa (no cambiar proyecto acá) -->
+    <form method="POST" action="{{ url_for('cambiar_proyecto') }}" class="inline">
+      <button type="submit" class="link-btn" style="color:#fff; text-decoration:none;">
+        ⬅️ Volver al Panel
+      </button>
+    </form>
+
+    <a href="{{ url_for('logout') }}">Salir</a>
+  </div>
+</nav>
 
 <script>
-  function cambiarProyecto(select) {
+  function cambiarProyecto() {
+    const select = document.getElementById("selectorProyecto");
     const proyectoId = select.value;
+    if (!proyectoId) return;
+    // Va a /empresa/ir/<id> y según rol entra a Tablero o a Tareas
     window.location.href = "/empresa/ir/" + proyectoId;
   }
 </script>
-
-function cambiarProyecto(select){
-    const proyectoId = select.value;
-    window.location.href = "/empresa/ir/" + proyectoId;
-}
-</script>
-
 
         <main>
             <!-- Filtros -->
