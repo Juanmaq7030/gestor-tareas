@@ -662,30 +662,39 @@ def sa_config():
     proyectos = pd_["proyectos"]
     usuarios = ud["usuarios"]
 
-    # ordenar empresas
-    empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
-
-    # empresa seleccionada (por querystring ?empresa_id=)
+    # ---------- empresa seleccionada ----------
     empresa_id_q = request.args.get("empresa_id")
     empresa_sel = None
-    empresa_sel_id = None
 
-    if empresa_id_q:
-        try:
-            empresa_sel_id = int(empresa_id_q)
-        except:
-            empresa_sel_id = None
+    if empresas:
+        if empresa_id_q:
+            try:
+                eid = int(empresa_id_q)
+            except:
+                eid = None
+            empresa_sel = next((e for e in empresas if e.get("id") == eid), None)
 
-    # si no viene, selecciona primera empresa por defecto
-    if empresa_sel_id is None and empresas_sorted:
-        empresa_sel_id = empresas_sorted[0].get("id")
+        # si no viene empresa_id o no existe, usa la primera (ordenada por nombre)
+        if not empresa_sel:
+            empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
+            empresa_sel = empresas_sorted[0]
+    else:
+        empresas_sorted = []
+        return render_template(
+            "sa_config.html",
+            empresas=[],
+            empresa_sel=None,
+            proyectos_sel=[],
+            usuarios_sel=[],
+            data_dir=DATA_DIR
+        )
 
-    if empresa_sel_id is not None:
-        empresa_sel = next((e for e in empresas_sorted if e.get("id") == empresa_sel_id), None)
+    # lista para el selector (ordenada)
+    empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
 
-    # filtrar proyectos y usuarios solo de la empresa seleccionada
-    proyectos_sel = [p for p in proyectos if empresa_sel and p.get("empresa_id") == empresa_sel.get("id")]
-    usuarios_sel = [u for u in usuarios if empresa_sel and u.get("empresa_id") == empresa_sel.get("id")]
+    # proyectos/usuarios de esa empresa
+    proyectos_sel = [p for p in proyectos if p.get("empresa_id") == empresa_sel.get("id")]
+    usuarios_sel = [u for u in usuarios if u.get("empresa_id") == empresa_sel.get("id")]
 
     proyectos_sel = sorted(proyectos_sel, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
     usuarios_sel = sorted(usuarios_sel, key=lambda x: (str(x.get("correo", "")).lower(), x.get("id", 0)))
