@@ -662,27 +662,40 @@ def sa_config():
     proyectos = pd_["proyectos"]
     usuarios = ud["usuarios"]
 
-    proys_por_empresa = {}
-    for p in proyectos:
-        proys_por_empresa.setdefault(p.get("empresa_id"), []).append(p)
-
-    users_por_empresa = {}
-    for u in usuarios:
-        users_por_empresa.setdefault(u.get("empresa_id"), []).append(u)
-
+    # ordenar empresas
     empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
-    for k in proys_por_empresa:
-        proys_por_empresa[k] = sorted(proys_por_empresa[k], key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
-    for k in users_por_empresa:
-        users_por_empresa[k] = sorted(users_por_empresa[k], key=lambda x: (str(x.get("correo", "")).lower(), x.get("id", 0)))
+
+    # empresa seleccionada (por querystring ?empresa_id=)
+    empresa_id_q = request.args.get("empresa_id")
+    empresa_sel = None
+    empresa_sel_id = None
+
+    if empresa_id_q:
+        try:
+            empresa_sel_id = int(empresa_id_q)
+        except:
+            empresa_sel_id = None
+
+    # si no viene, selecciona primera empresa por defecto
+    if empresa_sel_id is None and empresas_sorted:
+        empresa_sel_id = empresas_sorted[0].get("id")
+
+    if empresa_sel_id is not None:
+        empresa_sel = next((e for e in empresas_sorted if e.get("id") == empresa_sel_id), None)
+
+    # filtrar proyectos y usuarios solo de la empresa seleccionada
+    proyectos_sel = [p for p in proyectos if empresa_sel and p.get("empresa_id") == empresa_sel.get("id")]
+    usuarios_sel = [u for u in usuarios if empresa_sel and u.get("empresa_id") == empresa_sel.get("id")]
+
+    proyectos_sel = sorted(proyectos_sel, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
+    usuarios_sel = sorted(usuarios_sel, key=lambda x: (str(x.get("correo", "")).lower(), x.get("id", 0)))
 
     return render_template(
         "sa_config.html",
         empresas=empresas_sorted,
-        proys_por_empresa=proys_por_empresa,
-        users_por_empresa=users_por_empresa,
-        proyectos=proyectos,
-        usuarios=usuarios,
+        empresa_sel=empresa_sel,
+        proyectos_sel=proyectos_sel,
+        usuarios_sel=usuarios_sel,
         data_dir=DATA_DIR
     )
 
