@@ -900,7 +900,8 @@ def seleccionar_proyecto_post(proyecto_id):
 @require_roles("supervisor", "ejecutor")
 def cambiar_proyecto():
     clear_active_project()
-    return redirect(url_for("seleccionar_proyecto"))
+    # ✅ volver al panel Empresa (lista de proyectos)
+    return redirect(url_for("empresa_dashboard"))
 
 # ✅ Atajo para entrar a un proyecto desde empresa_dashboard.html
 @app.route("/empresa/ir/<int:proyecto_id>")
