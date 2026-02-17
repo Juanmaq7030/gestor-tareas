@@ -688,6 +688,101 @@ def sa_config():
             usuarios_sel=[],
             data_dir=DATA_DIR
         )
+@app.route("/sa/empresa/<int:empresa_id>/proyecto/nuevo", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_proyecto_nuevo(empresa_id):
+    nombre = (request.form.get("nombre_proyecto") or "").strip()
+    if not nombre:
+        flash("Debes ingresar un nombre de proyecto.", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id))
+
+    ed = empresas_data()
+    empresa = next((e for e in ed["empresas"] if e.get("id") == empresa_id), None)
+    if not empresa:
+        abort(404)
+
+    pd_ = proyectos_data()
+    proyectos = pd_["proyectos"]
+
+    proyectos_emp = [p for p in proyectos if p.get("empresa_id") == empresa_id]
+    max_proys = int(empresa.get("licencia_max_proyectos", 1) or 1)
+
+    if len(proyectos_emp) >= max_proys:
+        flash(f"Límite de proyectos alcanzado ({len(proyectos_emp)}/{max_proys}).", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id))
+
+    nuevo_id = _next_id(proyectos)
+    proyectos.append({
+        "id": nuevo_id,
+        "empresa_id": empresa_id,
+        "nombre": nombre,
+        "fecha_creacion": datetime.now().strftime("%Y-%m-%d"),
+        "terminado": False
+    })
+    pd_["proyectos"] = proyectos
+    _write_json(PROYECTOS_FILE, pd_)
+
+    save_tareas(nuevo_id, [], 1)
+    flash("Proyecto creado ✅", "ok")
+    return redirect(url_for("sa_config", empresa_id=empresa_id))
+
+
+@app.route("/sa/empresa/<int:empresa_id>/usuario/nuevo", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_usuario_nuevo(empresa_id):
+    nombre = (request.form.get("nombre") or "").strip()
+    correo = (request.form.get("correo") or "").strip().lower()
+    password = request.form.get("password") or ""
+    rol = (request.form.get("rol") or "").strip().lower()
+
+    if not (nombre and correo and password and rol):
+        flash("Faltan datos para crear usuario.", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id))
+
+    if rol not in ("supervisor", "ejecutor"):
+        flash("Rol inválido (solo supervisor/ejecutor).", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id))
+
+    if len(password) < 6:
+        flash("La contraseña debe tener al menos 6 caracteres.", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id))
+
+    ed = empresas_data()
+    empresa = next((e for e in ed["empresas"] if e.get("id") == empresa_id), None)
+    if not empresa:
+        abort(404)
+
+    ud = usuarios_data()
+    usuarios = ud["usuarios"]
+
+    usuarios_emp = [u for u in usuarios if u.get("empresa_id") == empresa_id]
+    max_users = int(empresa.get("licencia_max_usuarios", 5) or 5)
+
+    if len(usuarios_emp) >= max_users:
+        flash(f"Límite de usuarios alcanzado ({len(usuarios_emp)}/{max_users}).", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id))
+
+    existe = any((u.get("correo", "").strip().lower() == correo) for u in usuarios)
+    if existe:
+        flash("Ese correo ya existe en otro usuario.", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id))
+
+    nuevo_id = _next_id(usuarios)
+    usuarios.append({
+        "id": nuevo_id,
+        "nombre": nombre,
+        "correo": correo,
+        "password_hash": generate_password_hash(password),
+        "rol": rol,
+        "empresa_id": empresa_id
+    })
+    ud["usuarios"] = usuarios
+    _write_json(USUARIOS_FILE, ud)
+
+    flash("Usuario creado ✅", "ok")
+    return redirect(url_for("sa_config", empresa_id=empresa_id))
 
     # lista para el selector (ordenada)
     empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
