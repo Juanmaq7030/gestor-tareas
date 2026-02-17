@@ -103,13 +103,7 @@ function cambiarProyecto(select){
           <a class="btn small secondary" href="{{ url_for('logout') }}">Salir</a>
         </div>
       </div>
-
-      <nav style="margin-top:10px;">
-        <a href="{{ url_for('proyecto_index', proyecto_id=proyecto_id) }}">Inicio</a>
-        <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">Tablero</a>
-        <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
-        <a href="{{ url_for('about') }}">Acerca de</a>
-      </nav>
+    
     </header>
 
     <!-- CREAR TAREA -->
