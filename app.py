@@ -931,7 +931,27 @@ def empresa_ir_proyecto(proyecto_id):
 @no_cache
 def proyecto_index(proyecto_id):
     tareas, _ = load_tareas(proyecto_id)
-    return render_template("index.html", tareas=tareas, estados=ESTADOS, proyecto_id=proyecto_id, user=current_user())
+
+    u = current_user()
+    empresas = empresas_data()["empresas"]
+    empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
+
+    proyectos = proyectos_data()["proyectos"]
+    proyectos_usuario = [
+        p for p in proyectos
+        if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
+    ]
+
+    return render_template(
+        "index.html",
+        tareas=tareas,
+        estados=ESTADOS,
+        proyecto_id=proyecto_id,
+        user=u,
+        empresa_nombre=empresa.get("nombre") if empresa else "",
+        proyectos_usuario=proyectos_usuario
+    )
+
 
 @app.route("/p/<int:proyecto_id>/agregar", methods=["POST"])
 @login_required
