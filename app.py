@@ -770,7 +770,6 @@ def sa_empresa_editar(empresa_id):
     flash("Empresa actualizada.", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
-
 @app.route("/sa/empresa/<int:empresa_id>/proyecto/nuevo", methods=["POST"])
 @login_required
 @require_roles("superadmin")
