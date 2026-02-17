@@ -658,36 +658,41 @@ def sa_config():
     pd_ = proyectos_data()
     ud = usuarios_data()
 
-    empresas = ed["empresas"]
-    proyectos = pd_["proyectos"]
-    usuarios = ud["usuarios"]
+    empresas = ed.get("empresas", [])
+    proyectos = pd_.get("proyectos", [])
+    usuarios = ud.get("usuarios", [])
 
-    # ---------- empresa seleccionada ----------
-    empresa_id_q = request.args.get("empresa_id")
+    # --- empresa seleccionada por querystring (?empresa_id=) ---
+    empresa_id = request.args.get("empresa_id", type=int)
+
     empresa_sel = None
-
     if empresas:
-        if empresa_id_q:
-            try:
-                eid = int(empresa_id_q)
-            except:
-                eid = None
-            empresa_sel = next((e for e in empresas if e.get("id") == eid), None)
-
-        # si no viene empresa_id o no existe, usa la primera (ordenada por nombre)
+        if empresa_id:
+            empresa_sel = next((e for e in empresas if int(e.get("id")) == int(empresa_id)), None)
+        # si no viene empresa_id o no existe, usa la primera por orden nombre
         if not empresa_sel:
-            empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), x.get("id", 0)))
-            empresa_sel = empresas_sorted[0]
-    else:
-        empresas_sorted = []
-        return render_template(
-            "sa_config.html",
-            empresas=[],
-            empresa_sel=None,
-            proyectos_sel=[],
-            usuarios_sel=[],
-            data_dir=DATA_DIR
-        )
+            empresas_sorted_tmp = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0))))
+            empresa_sel = empresas_sorted_tmp[0]
+            empresa_id = int(empresa_sel.get("id"))
+
+    # Datos filtrados de la empresa seleccionada
+    proyectos_sel = [p for p in proyectos if empresa_sel and p.get("empresa_id") == empresa_id]
+    usuarios_sel = [u for u in usuarios if empresa_sel and u.get("empresa_id") == empresa_id]
+
+    # Orden (bonito)
+    empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0))))
+    proyectos_sel = sorted(proyectos_sel, key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0))))
+    usuarios_sel = sorted(usuarios_sel, key=lambda x: (str(x.get("correo", "")).lower(), int(x.get("id", 0))))
+
+    return render_template(
+        "sa_config.html",
+        data_dir=DATA_DIR,
+        empresas=empresas_sorted,
+        empresa_sel=empresa_sel,
+        proyectos_sel=proyectos_sel,
+        usuarios_sel=usuarios_sel
+    )
+
 @app.route("/sa/empresa/<int:empresa_id>/proyecto/nuevo", methods=["POST"])
 @login_required
 @require_roles("superadmin")
