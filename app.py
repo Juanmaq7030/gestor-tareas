@@ -770,6 +770,7 @@ def sa_empresa_editar(empresa_id):
     flash("Empresa actualizada.", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
+
 @app.route("/sa/empresa/<int:empresa_id>/proyecto/nuevo", methods=["POST"])
 @login_required
 @require_roles("superadmin")
@@ -841,6 +842,7 @@ def sa_proyecto_editar(proyecto_id):
     flash("Proyecto actualizado.", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
+
 @app.route("/sa/proyecto/<int:proyecto_id>/eliminar", methods=["POST"])
 @login_required
 @require_roles("superadmin")
@@ -861,6 +863,7 @@ def sa_proyecto_eliminar_post(proyecto_id):
     _safe_remove(tareas_file(proyecto_id))
     flash("Proyecto eliminado (y archivo de tareas asociado).", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
+
 
 @app.route("/sa/empresa/<int:empresa_id>/usuario/nuevo", methods=["POST"])
 @login_required
@@ -1061,6 +1064,17 @@ def seleccionar_proyecto():
         return redirect(url_for("proyecto_index", proyecto_id=pid))
 
     return render_template("seleccionar_proyecto.html", proyectos=proys, user=u)
+
+
+# ✅✅✅ FIX CRÍTICO: endpoint requerido por templates/tablero.html
+# En tablero.html tienes: url_for('cambiar_proyecto')
+@app.route("/cambiar-proyecto", methods=["GET", "POST"])
+@login_required
+@require_roles("supervisor", "ejecutor")
+def cambiar_proyecto():
+    # “Volver al panel Empresa” y limpiar proyecto activo
+    clear_active_project()
+    return redirect(url_for("empresa_dashboard"))
 
 
 # ================= PROYECTO: PLANIFICADOR =================
