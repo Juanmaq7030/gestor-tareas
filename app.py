@@ -33,7 +33,6 @@ EMPRESAS_FILE = os.path.join(DATA_DIR, "empresas.json")
 PROYECTOS_FILE = os.path.join(DATA_DIR, "proyectos.json")
 USUARIOS_FILE = os.path.join(DATA_DIR, "usuarios.json")
 
-
 # ================= UTILIDADES JSON =================
 def _read_json(path, default):
     """Lee JSON robusto. Si no existe / está vacío / corrupto => default."""
@@ -48,33 +47,26 @@ def _read_json(path, default):
     except Exception:
         return default
 
-
 def _write_json(path, data):
     """Escribe JSON asegurando carpeta."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-
 def _next_id(items):
     return (max([int(x.get("id", 0)) for x in items]) + 1) if items else 1
-
 
 def empresas_data():
     return _read_json(EMPRESAS_FILE, {"empresas": []})
 
-
 def proyectos_data():
     return _read_json(PROYECTOS_FILE, {"proyectos": []})
-
 
 def usuarios_data():
     return _read_json(USUARIOS_FILE, {"usuarios": []})
 
-
 def tareas_file(proyecto_id: int):
     return os.path.join(DATA_DIR, f"tareas_{int(proyecto_id)}.json")
-
 
 def _safe_remove(path: str):
     try:
@@ -82,7 +74,6 @@ def _safe_remove(path: str):
             os.remove(path)
     except Exception:
         pass
-
 
 def ensure_core_files():
     """Asegura JSON base (evita 500 por archivos faltantes)."""
@@ -93,10 +84,8 @@ def ensure_core_files():
     if not os.path.exists(USUARIOS_FILE):
         _write_json(USUARIOS_FILE, {"usuarios": []})
 
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 def no_cache(f):
     @wraps(f)
@@ -108,7 +97,6 @@ def no_cache(f):
         return response
     return wrapper
 
-
 # ================= AUTH =================
 def current_user():
     uid = session.get("user_id")
@@ -117,7 +105,6 @@ def current_user():
     users = usuarios_data()["usuarios"]
     return next((u for u in users if u.get("id") == uid), None)
 
-
 def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -125,7 +112,6 @@ def login_required(f):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return wrapper
-
 
 def require_roles(*roles):
     def deco(f):
@@ -140,7 +126,6 @@ def require_roles(*roles):
         return wrapper
     return deco
 
-
 # -------- Proyecto activo en sesión --------
 def active_project_id():
     pid = session.get("project_id")
@@ -149,19 +134,15 @@ def active_project_id():
     except Exception:
         return None
 
-
 def set_active_project(pid: int):
     session["project_id"] = int(pid)
-
 
 def clear_active_project():
     session.pop("project_id", None)
 
-
 def _get_project(proyecto_id: int):
     proyectos = proyectos_data()["proyectos"]
     return next((p for p in proyectos if p.get("id") == int(proyecto_id)), None)
-
 
 def user_can_access_project(u, proyecto_id: int) -> bool:
     if u.get("rol") == "superadmin":
@@ -169,11 +150,9 @@ def user_can_access_project(u, proyecto_id: int) -> bool:
     p = _get_project(int(proyecto_id))
     if not p:
         return False
-    # bloquea acceso a proyectos terminados para no-superadmin
     if p.get("terminado", False):
         return False
     return p.get("empresa_id") == u.get("empresa_id")
-
 
 def require_project_access(f):
     @wraps(f)
@@ -185,7 +164,6 @@ def require_project_access(f):
             abort(403)
         return f(proyecto_id, *args, **kwargs)
     return wrapper
-
 
 # ================= TAREAS POR PROYECTO =================
 def load_tareas(proyecto_id: int):
@@ -219,10 +197,8 @@ def load_tareas(proyecto_id: int):
 
     return tareas, contador_id
 
-
 def save_tareas(proyecto_id: int, tareas: list, contador_id: int):
     _write_json(tareas_file(proyecto_id), {"tareas": tareas, "contador_id": contador_id})
-
 
 def agregar_tarea(proyecto_id, texto, responsable, centro, plazo, observacion, recursos):
     tareas, contador_id = load_tareas(proyecto_id)
@@ -242,7 +218,6 @@ def agregar_tarea(proyecto_id, texto, responsable, centro, plazo, observacion, r
     save_tareas(proyecto_id, tareas, contador_id)
     return tarea
 
-
 def cambiar_estado(proyecto_id, tid, estado, user):
     if estado == "Validada" and user.get("rol") not in ("supervisor", "superadmin"):
         return False
@@ -253,7 +228,6 @@ def cambiar_estado(proyecto_id, tid, estado, user):
             save_tareas(proyecto_id, tareas, contador_id)
             return True
     return False
-
 
 def actualizar_tarea(proyecto_id, tid, responsable=None, centro=None, plazo=None, observacion=None, recursos=None):
     tareas, contador_id = load_tareas(proyecto_id)
@@ -268,7 +242,6 @@ def actualizar_tarea(proyecto_id, tid, responsable=None, centro=None, plazo=None
             return True
     return False
 
-
 def agregar_documento(proyecto_id, tid, filename):
     tareas, contador_id = load_tareas(proyecto_id)
     for t in tareas:
@@ -278,7 +251,6 @@ def agregar_documento(proyecto_id, tid, filename):
                 save_tareas(proyecto_id, tareas, contador_id)
                 return True
     return False
-
 
 # ================= ESTADÍSTICAS =================
 def obtener_estadisticas(tareas_filtradas, estados=ESTADOS):
@@ -328,7 +300,6 @@ def obtener_estadisticas(tareas_filtradas, estados=ESTADOS):
         'sin_plazo': sin_plazo
     }
 
-
 def filtrar_tareas(tareas, centro=None, responsable=None, estado=None, plazo=None):
     tareas_filtradas = tareas.copy()
     hoy = datetime.now().date()
@@ -367,7 +338,6 @@ def filtrar_tareas(tareas, centro=None, responsable=None, estado=None, plazo=Non
             tareas_filtradas = [t for t in tareas_filtradas if not t.get('plazo')]
 
     return tareas_filtradas
-
 
 # ================= SEED/RESET SUPERADMIN =================
 def ensure_superadmin():
@@ -423,7 +393,6 @@ def ensure_superadmin():
     ud["usuarios"] = users
     _write_json(USUARIOS_FILE, ud)
     print(f"✅ Superadmin creado: {admin_email} (cámbialo)")
-
 
 # ================= CREACIÓN EMPRESA/PROYECTO/USUARIOS =================
 def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_sup, pass_sup, correo_eje, pass_eje, max_users=5, max_proys=1):
@@ -491,7 +460,6 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
 
     return empresa_id, proyecto_id
 
-
 # ================= RUTAS AUTH =================
 @app.route("/login", methods=["GET", "POST"])
 @no_cache
@@ -521,12 +489,10 @@ def login():
 
     return render_template("login.html"), 200
 
-
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
-
 
 @app.route("/")
 def root():
@@ -545,6 +511,17 @@ def root():
 
     return redirect(url_for("seleccionar_proyecto"))
 
+# ================= RUTA CLAVE (ARREGLA EL 500 DEL SUPERVISOR) =================
+@app.route("/cambiar-proyecto", methods=["POST"])
+@login_required
+@require_roles("supervisor", "ejecutor")
+def cambiar_proyecto():
+    """
+    Opción A: volver al Panel Empresa (dashboard de empresa).
+    Mantiene lógica simple: limpia proyecto activo y vuelve a /empresa.
+    """
+    clear_active_project()
+    return redirect(url_for("empresa_dashboard"))
 
 # ================= SUPERADMIN =================
 @app.route("/sa")
@@ -563,7 +540,6 @@ def sa_dashboard():
 
     return render_template("admin_dashboard.html", resumen=resumen)
 
-
 # ================= SUPERADMIN: SECCIONES (LISTADOS) =================
 @app.route("/sa/empresas")
 @login_required
@@ -571,7 +547,6 @@ def sa_dashboard():
 def sa_empresas():
     empresas = empresas_data()["empresas"]
     return render_template("sa_empresas.html", empresas=empresas)
-
 
 @app.route("/sa/usuarios")
 @login_required
@@ -587,7 +562,6 @@ def sa_usuarios():
         usuarios_out.append(uu)
     return render_template("sa_usuarios.html", usuarios=usuarios_out)
 
-
 @app.route("/sa/proyectos")
 @login_required
 @require_roles("superadmin")
@@ -601,7 +575,6 @@ def sa_proyectos():
         pp["empresa_nombre"] = emp_map.get(pp.get("empresa_id"), "-")
         proyectos_out.append(pp)
     return render_template("sa_proyectos.html", proyectos=proyectos_out)
-
 
 @app.route("/sa/empresa/nueva", methods=["GET", "POST"])
 @login_required
@@ -645,7 +618,6 @@ def sa_empresa_nueva():
 
     return render_template("sa_empresa_nueva.html")
 
-
 # ================= SUPERADMIN: ELIMINAR EMPRESA (cascada) =================
 @app.route("/sa/empresa/<int:empresa_id>/eliminar", methods=["POST"])
 @login_required
@@ -678,13 +650,11 @@ def sa_empresa_eliminar(empresa_id):
     flash("Empresa eliminada (con proyectos/usuarios asociados).", "ok")
     return redirect(url_for("sa_config"))
 
-
 # =======================
 # SUPERADMIN: CONFIG PANEL (CRUD) - PANEL ÚNICO POR EMPRESA
 # =======================
 def _bool(v):
     return str(v).strip().lower() in ("1", "true", "on", "yes", "si", "sí")
-
 
 @app.route("/sa/config")
 @login_required
@@ -699,43 +669,26 @@ def sa_config():
     proyectos = pd_.get("proyectos", [])
     usuarios = ud.get("usuarios", [])
 
-    # empresa seleccionada por querystring (?empresa_id=)
     empresa_id = request.args.get("empresa_id", type=int)
 
     empresa_sel = None
     if empresas:
         if empresa_id:
             empresa_sel = next((e for e in empresas if int(e.get("id")) == int(empresa_id)), None)
-
         if not empresa_sel:
-            empresas_sorted_tmp = sorted(
-                empresas,
-                key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0)))
-            )
+            empresas_sorted_tmp = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0))))
             empresa_sel = empresas_sorted_tmp[0]
             empresa_id = int(empresa_sel.get("id"))
 
-    # listas ordenadas para el selector
-    empresas_sorted = sorted(
-        empresas,
-        key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0)))
-    )
+    empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0))))
 
-    # filtrados para la empresa seleccionada
     proyectos_sel = []
     usuarios_sel = []
     if empresa_sel:
         proyectos_sel = [p for p in proyectos if p.get("empresa_id") == empresa_id]
         usuarios_sel = [u for u in usuarios if u.get("empresa_id") == empresa_id]
-
-        proyectos_sel = sorted(
-            proyectos_sel,
-            key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0)))
-        )
-        usuarios_sel = sorted(
-            usuarios_sel,
-            key=lambda x: (str(x.get("correo", "")).lower(), int(x.get("id", 0)))
-        )
+        proyectos_sel = sorted(proyectos_sel, key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0))))
+        usuarios_sel = sorted(usuarios_sel, key=lambda x: (str(x.get("correo", "")).lower(), int(x.get("id", 0))))
 
     return render_template(
         "sa_config.html",
@@ -745,7 +698,6 @@ def sa_config():
         proyectos_sel=proyectos_sel,
         usuarios_sel=usuarios_sel
     )
-
 
 @app.route("/sa/empresa/<int:empresa_id>/editar", methods=["POST"])
 @login_required
@@ -770,11 +722,11 @@ def sa_empresa_editar(empresa_id):
     flash("Empresa actualizada.", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
-
 @app.route("/sa/empresa/<int:empresa_id>/proyecto/nuevo", methods=["POST"])
 @login_required
 @require_roles("superadmin")
 def sa_proyecto_nuevo(empresa_id):
+    # OJO: el input del template debe ser name="nombre_proyecto"
     nombre = (request.form.get("nombre_proyecto") or "").strip()
     if not nombre:
         flash("Debes ingresar un nombre de proyecto.", "error")
@@ -810,7 +762,6 @@ def sa_proyecto_nuevo(empresa_id):
     flash("Proyecto creado ✅", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
-
 @app.route("/sa/proyecto/<int:proyecto_id>/editar", methods=["POST"])
 @login_required
 @require_roles("superadmin")
@@ -825,7 +776,7 @@ def sa_proyecto_editar(proyecto_id):
     if not p:
         abort(404)
 
-    empresa_id = p.get("empresa_id")  # ✅ clave para volver a la empresa correcta
+    empresa_id = p.get("empresa_id")
 
     if nombre:
         p["nombre"] = nombre
@@ -842,7 +793,6 @@ def sa_proyecto_editar(proyecto_id):
     flash("Proyecto actualizado.", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
-
 @app.route("/sa/proyecto/<int:proyecto_id>/eliminar", methods=["POST"])
 @login_required
 @require_roles("superadmin")
@@ -854,7 +804,7 @@ def sa_proyecto_eliminar_post(proyecto_id):
     if not p:
         abort(404)
 
-    empresa_id = p.get("empresa_id")  # ✅ para volver a la empresa correcta
+    empresa_id = p.get("empresa_id")
 
     proyectos = [x for x in proyectos if x.get("id") != proyecto_id]
     pd_["proyectos"] = proyectos
@@ -863,7 +813,6 @@ def sa_proyecto_eliminar_post(proyecto_id):
     _safe_remove(tareas_file(proyecto_id))
     flash("Proyecto eliminado (y archivo de tareas asociado).", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
-
 
 @app.route("/sa/empresa/<int:empresa_id>/usuario/nuevo", methods=["POST"])
 @login_required
@@ -921,7 +870,6 @@ def sa_usuario_nuevo(empresa_id):
     flash("Usuario creado ✅", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
-
 @app.route("/sa/usuario/<int:user_id>/editar", methods=["POST"])
 @login_required
 @require_roles("superadmin")
@@ -960,7 +908,6 @@ def sa_usuario_editar(user_id):
     flash("Usuario actualizado.", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
-
 @app.route("/sa/usuario/<int:user_id>/reset-password", methods=["POST"])
 @login_required
 @require_roles("superadmin")
@@ -986,7 +933,6 @@ def sa_usuario_reset_password(user_id):
     flash("Contraseña reseteada ✅", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
-
 @app.route("/sa/usuario/<int:user_id>/eliminar", methods=["POST"])
 @login_required
 @require_roles("superadmin")
@@ -1004,7 +950,6 @@ def sa_usuario_eliminar_post(user_id):
     flash("Usuario eliminado.", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
-
 # ================= DASHBOARD EMPRESA =================
 @app.route("/empresa")
 @login_required
@@ -1017,7 +962,6 @@ def empresa_dashboard():
 
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
 
-    # ocultar terminados
     proys = [
         p for p in proyectos
         if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
@@ -1036,7 +980,6 @@ def empresa_dashboard():
 
     return render_template("empresa_dashboard.html", empresa=empresa, avances=avances, user=u)
 
-
 # ================= SELECCIONAR PROYECTO =================
 @app.route("/seleccionar-proyecto", methods=["GET"])
 @login_required
@@ -1046,7 +989,6 @@ def seleccionar_proyecto():
     u = current_user()
     proyectos = proyectos_data()["proyectos"]
 
-    # ocultar terminados
     proys = [
         p for p in proyectos
         if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
@@ -1064,18 +1006,6 @@ def seleccionar_proyecto():
         return redirect(url_for("proyecto_index", proyecto_id=pid))
 
     return render_template("seleccionar_proyecto.html", proyectos=proys, user=u)
-
-
-# ✅✅✅ FIX CRÍTICO: endpoint requerido por templates/tablero.html
-# En tablero.html tienes: url_for('cambiar_proyecto')
-@app.route("/cambiar-proyecto", methods=["GET", "POST"])
-@login_required
-@require_roles("supervisor", "ejecutor")
-def cambiar_proyecto():
-    # “Volver al panel Empresa” y limpiar proyecto activo
-    clear_active_project()
-    return redirect(url_for("empresa_dashboard"))
-
 
 # ================= PROYECTO: PLANIFICADOR =================
 @app.route("/p/<int:proyecto_id>/")
@@ -1105,7 +1035,6 @@ def proyecto_index(proyecto_id):
         proyectos_usuario=proyectos_usuario
     )
 
-
 @app.route("/p/<int:proyecto_id>/agregar", methods=["POST"])
 @login_required
 @require_project_access
@@ -1123,7 +1052,6 @@ def proyecto_agregar(proyecto_id):
         )
     return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
 
-
 @app.route("/p/<int:proyecto_id>/cambiar_estado/<int:tid>", methods=["POST"])
 @login_required
 @require_project_access
@@ -1131,7 +1059,6 @@ def proyecto_cambiar_estado(proyecto_id, tid):
     estado = request.form.get('situacion', '')
     cambiar_estado(proyecto_id, tid, estado, current_user())
     return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
-
 
 @app.route("/p/<int:proyecto_id>/actualizar_tarea/<int:tid>", methods=["POST"])
 @login_required
@@ -1147,7 +1074,6 @@ def proyecto_actualizar_tarea(proyecto_id, tid):
         request.form.get('recursos')
     )
     return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
-
 
 @app.route("/p/<int:proyecto_id>/adjuntar/<int:tid>", methods=["POST"])
 @login_required
@@ -1166,11 +1092,9 @@ def proyecto_adjuntar(proyecto_id, tid):
             agregar_documento(proyecto_id, tid, filename)
     return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
 
-
 @app.route("/uploads/<filename>")
 def uploads(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
-
 
 # ================= PROYECTO: TABLERO =================
 @app.route("/p/<int:proyecto_id>/tablero")
@@ -1230,7 +1154,6 @@ def proyecto_tablero(proyecto_id):
         proyectos_usuario=proyectos_usuario
     )
 
-
 # ================= PROYECTO: INFORME =================
 @app.route("/p/<int:proyecto_id>/informe")
 @login_required
@@ -1269,11 +1192,9 @@ def proyecto_informe(proyecto_id):
         proyecto_id=proyecto_id
     )
 
-
 @app.route("/about")
 def about():
     return render_template("about.html")
-
 
 # ================= INIT =================
 ensure_superadmin()
