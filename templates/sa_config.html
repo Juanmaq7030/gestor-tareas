@@ -32,6 +32,7 @@
     .box{border:1px solid #eee; border-radius:12px; padding:12px; margin-top:10px;}
     .danger{background:#fff5f5; border-color:#ffd5d5;}
     .right-meta{margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    .help{background:#f1f7ff; border:1px solid #cfe2ff; border-radius:12px; padding:10px; margin-top:10px; color:#0b3d91;}
   </style>
 </head>
 <body>
@@ -125,8 +126,16 @@
               <strong>📁 Proyectos</strong>
               <div class="mini">Crear · Editar nombre · Terminar · Eliminar</div>
 
+              <!-- ✅ INSTRUCCIÓN CLARA: PROYECTOS ASOCIADOS A LA EMPRESA SELECCIONADA -->
+              <div class="help">
+                <strong>Empresa seleccionada:</strong> {{ empresa_sel.nombre }} (ID {{ empresa_sel.id }}).<br>
+                Todo lo que <strong>crees</strong>, <strong>edites</strong> o <strong>elimines</strong> aquí quedará asociado a esta empresa
+                y se reflejará en el selector de proyectos del tablero/planificador.
+              </div>
+
+              <!-- CREAR PROYECTO (asociado a empresa_sel) -->
               <form class="row" method="POST" action="{{ url_for('sa_proyecto_nuevo', empresa_id=empresa_sel.id) }}" style="margin-top:10px;">
-                <input name="nombre_proyecto" placeholder="Nombre del nuevo proyecto">
+                <input name="nombre_proyecto" placeholder="Nombre del nuevo proyecto" required>
                 <button class="btn primary w-auto" type="submit">➕ Crear</button>
               </form>
 
@@ -138,16 +147,20 @@
                 <div class="box" style="margin-top:10px;">
                   <div class="mini"><span class="pill">ID {{ p.id }}</span></div>
 
+                  <!-- EDITAR PROYECTO -->
                   <form class="row" method="POST" action="{{ url_for('sa_proyecto_editar', proyecto_id=p.id) }}" style="margin-top:10px;">
-                    <input name="nombre" placeholder="Nombre proyecto" value="{{ p.nombre }}">
+                    <input name="nombre" placeholder="Nombre proyecto" value="{{ p.nombre }}" required>
                     <label class="mini w-auto">
                       <input type="checkbox" name="terminado" {% if p.get('terminado', false) %}checked{% endif %}>
                       Terminado
                     </label>
-                    <button class="btn primary w-auto" type="submit">Guardar</button>
+                    <button class="btn primary w-auto" type="submit">💾 Guardar</button>
                   </form>
 
-                  <form method="POST" action="{{ url_for('sa_proyecto_eliminar_post', proyecto_id=p.id) }}" onsubmit="return confirm('¿Eliminar proyecto y sus tareas?');" style="margin-top:10px;">
+                  <!-- ELIMINAR PROYECTO -->
+                  <form method="POST" action="{{ url_for('sa_proyecto_eliminar_post', proyecto_id=p.id) }}"
+                        onsubmit="return confirm('¿Eliminar este proyecto? También se borrará su archivo de tareas.');"
+                        style="margin-top:10px;">
                     <button class="btn red" type="submit">🗑 Eliminar proyecto</button>
                   </form>
                 </div>
@@ -160,13 +173,13 @@
               <div class="mini">Crear · Editar · Reset password · Eliminar</div>
 
               <form class="row" method="POST" action="{{ url_for('sa_usuario_nuevo', empresa_id=empresa_sel.id) }}" style="margin-top:10px;">
-                <input name="nombre" placeholder="Nombre">
-                <input name="correo" placeholder="Correo" type="email">
-                <select class="w-auto" name="rol">
+                <input name="nombre" placeholder="Nombre" required>
+                <input name="correo" placeholder="Correo" type="email" required>
+                <select class="w-auto" name="rol" required>
                   <option value="supervisor">supervisor</option>
                   <option value="ejecutor">ejecutor</option>
                 </select>
-                <input name="password" placeholder="Contraseña (mín 6)" type="text">
+                <input name="password" placeholder="Contraseña (mín 6)" type="text" required>
                 <button class="btn primary w-auto" type="submit">➕ Crear</button>
               </form>
 
@@ -179,9 +192,9 @@
                   <div class="mini"><span class="pill">ID {{ u.id }}</span> Rol: <strong>{{ u.rol }}</strong></div>
 
                   <form class="row" method="POST" action="{{ url_for('sa_usuario_editar', user_id=u.id) }}" style="margin-top:10px;">
-                    <input name="nombre" placeholder="Nombre" value="{{ u.nombre }}">
-                    <input name="correo" placeholder="Correo" value="{{ u.correo }}">
-                    <select class="w-auto" name="rol">
+                    <input name="nombre" placeholder="Nombre" value="{{ u.nombre }}" required>
+                    <input name="correo" placeholder="Correo" value="{{ u.correo }}" required>
+                    <select class="w-auto" name="rol" required>
                       <option value="supervisor" {% if u.rol=='supervisor' %}selected{% endif %}>supervisor</option>
                       <option value="ejecutor" {% if u.rol=='ejecutor' %}selected{% endif %}>ejecutor</option>
                       <option value="superadmin" {% if u.rol=='superadmin' %}selected{% endif %}>superadmin</option>
@@ -190,7 +203,7 @@
                   </form>
 
                   <form class="row" method="POST" action="{{ url_for('sa_usuario_reset_password', user_id=u.id) }}" style="margin-top:10px;">
-                    <input name="new_password" placeholder="Nueva contraseña (mín 6)" type="text">
+                    <input name="new_password" placeholder="Nueva contraseña (mín 6)" type="text" required>
                     <button class="btn orange w-auto" type="submit">🔑 Reset</button>
                   </form>
 
