@@ -1,353 +1,354 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tablero de Control - Planificador de Tareas</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <style>
-        form.inline { display:inline; margin:0; padding:0; }
-        .link-btn {
-            background:none; border:none; padding:0; margin:0;
-            color:#0d6efd; cursor:pointer; text-decoration:underline;
-            font: inherit;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <title>Tablero de Control - Planificador de Tareas</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    form.inline { display:inline; margin:0; padding:0; }
+    .link-btn {
+      background:none; border:none; padding:0; margin:0;
+      cursor:pointer; text-decoration:none; font: inherit;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-  <h1>📊 Tablero de Control</h1>
+  <div class="container">
 
- <nav style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-  <a href="{{ url_for('proyecto_index', proyecto_id=proyecto_id) }}">Inicio</a>
-  <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">Tablero de Control</a>
-  <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
-  <a href="{{ url_for('about') }}">Acerca de</a>
+    <header>
+      <h1>📊 Tablero de Control</h1>
 
-  <!-- Contexto Empresa + Selector Proyecto -->
-  <div class="topbar-context" style="display:flex; gap:14px; align-items:center; margin-left:auto; flex-wrap:wrap;">
-    <div class="empresa-label">
-      🏢 <strong>{{ empresa_nombre }}</strong>
-    </div>
+      <nav style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <a href="{{ url_for('proyecto_index', proyecto_id=proyecto_id) }}">Inicio</a>
+        <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">Tablero de Control</a>
+        <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
+        <a href="{{ url_for('about') }}">Acerca de</a>
 
-    <div class="proyecto-selector" style="display:flex; align-items:center; gap:8px;">
-      📁 <strong>Proyecto:</strong>
+        <!-- Contexto Empresa + Selector Proyecto -->
+        <div class="topbar-context" style="display:flex; gap:14px; align-items:center; margin-left:auto; flex-wrap:wrap;">
+          <div class="empresa-label">
+            🏢 <strong>{{ empresa_nombre }}</strong>
+          </div>
 
-      <select id="selectorProyecto"
-              class="selector-proyecto"
-              style="padding:6px 10px; border-radius:8px; border:1px solid #ccc; cursor:pointer;"
-              onchange="cambiarProyecto()">
-        <option value="">-- Selecciona --</option>
-        {% for p in proyectos_usuario %}
-          <option value="{{ p.id }}" {% if p.id == proyecto_id %}selected{% endif %}>
-            {{ p.nombre }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
+          <div class="proyecto-selector" style="display:flex; align-items:center; gap:8px;">
+            📁 <strong>Proyecto:</strong>
 
-    <!-- ✅ ESTE BOTÓN debe volver al panel Empresa (no cambiar proyecto acá) -->
-    <form method="POST" action="{{ url_for('cambiar_proyecto') }}" class="inline">
-  <button type="submit" class="link-btn" style="color:#fff; text-decoration:none;">
-    ⬅️ Volver al Panel
-  </button>
-</form>
+            <select id="selectorProyecto"
+                    class="selector-proyecto"
+                    style="padding:6px 10px; border-radius:8px; border:1px solid #ccc; cursor:pointer;"
+                    onchange="cambiarProyecto()">
+              <option value="">-- Selecciona --</option>
+              {% for p in proyectos_usuario %}
+                <option value="{{ p.id }}" {% if p.id == proyecto_id %}selected{% endif %}>
+                  {{ p.nombre }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
 
-    <a href="{{ url_for('logout') }}">Salir</a>
+          <!-- ✅ Volver al panel Empresa (POST al endpoint cambiar_proyecto) -->
+          <form method="POST" action="{{ url_for('cambiar_proyecto') }}" class="inline">
+            <button type="submit" class="link-btn" style="color:#fff;">
+              ⬅️ Volver al Panel
+            </button>
+          </form>
+
+          <a href="{{ url_for('logout') }}">Salir</a>
+        </div>
+      </nav>
+
+      <script>
+        function cambiarProyecto() {
+          const select = document.getElementById("selectorProyecto");
+          const proyectoId = select.value;
+          if (!proyectoId) return;
+
+          // ✅ No usamos /empresa/ir/<id> (puede no existir)
+          // Supervisor -> tablero, Ejecutor -> tareas
+          const rol = "{{ (user.rol if user and user.rol else '') }}";
+          if (rol === "supervisor") {
+            window.location.href = "/p/" + proyectoId + "/tablero";
+          } else {
+            window.location.href = "/p/" + proyectoId + "/";
+          }
+        }
+      </script>
+    </header>
+
+    <main>
+      <!-- Filtros -->
+      <section class="filters-section">
+        <h2>Filtros</h2>
+        <form method="GET" action="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}" class="filters-form">
+          <div class="filter-row">
+            <div class="filter-group">
+              <label for="centro">Centro de Responsabilidad:</label>
+              <select name="centro" id="centro" class="filter-select">
+                <option value="Todos" {% if filtros.centro == 'Todos' %}selected{% endif %}>Todos</option>
+                {% for centro in centros %}
+                  <option value="{{ centro }}" {% if filtros.centro == centro %}selected{% endif %}>{{ centro }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="responsable">Responsable:</label>
+              <select name="responsable" id="responsable" class="filter-select">
+                <option value="Todos" {% if filtros.responsable == 'Todos' %}selected{% endif %}>Todos</option>
+                {% for responsable in responsables %}
+                  <option value="{{ responsable }}" {% if filtros.responsable == responsable %}selected{% endif %}>{{ responsable }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="estado">Estado:</label>
+              <select name="estado" id="estado" class="filter-select">
+                <option value="Todos" {% if filtros.estado == 'Todos' %}selected{% endif %}>Todos</option>
+                {% for estado in estados %}
+                  <option value="{{ estado }}" {% if filtros.estado == estado %}selected{% endif %}>{{ estado }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="plazo">Plazo:</label>
+              <select name="plazo" id="plazo" class="filter-select">
+                <option value="Todos" {% if filtros.plazo == 'Todos' %}selected{% endif %}>Todos</option>
+                <option value="vencidas" {% if filtros.plazo == 'vencidas' %}selected{% endif %}>Vencidas</option>
+                <option value="por_vencer" {% if filtros.plazo == 'por_vencer' %}selected{% endif %}>Por Vencer</option>
+                <option value="sin_plazo" {% if filtros.plazo == 'sin_plazo' %}selected{% endif %}>Sin Plazo</option>
+              </select>
+            </div>
+
+            <div class="filter-actions">
+              <button type="submit" class="btn-filter">Aplicar Filtros</button>
+              <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}" class="btn-clear">Limpiar</a>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <!-- Estadísticas Generales -->
+      <section class="stats-section">
+        <h2>Estadísticas Generales</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total de Tareas</div>
+            <div class="stat-value">{{ estadisticas_totales.total }}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Tareas Filtradas</div>
+            <div class="stat-value">{{ estadisticas.total }}</div>
+          </div>
+          <div class="stat-card stat-warning">
+            <div class="stat-label">Tareas Vencidas</div>
+            <div class="stat-value">{{ estadisticas_totales.vencidas }}</div>
+          </div>
+          <div class="stat-card stat-info">
+            <div class="stat-label">Por Vencer</div>
+            <div class="stat-value">{{ estadisticas_totales.por_vencer }}</div>
+          </div>
+          <div class="stat-card stat-success">
+            <div class="stat-label">Completadas</div>
+            <div class="stat-value">{{ estadisticas.por_estado.get('Completada', 0) }}</div>
+          </div>
+          <div class="stat-card stat-primary">
+            <div class="stat-label">Validadas</div>
+            <div class="stat-value">{{ estadisticas.por_estado.get('Validada', 0) }}</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Gráficos -->
+      <section class="charts-section">
+        <div class="chart-container">
+          <h2>Distribución por Estado</h2>
+          <canvas id="chartEstado"></canvas>
+        </div>
+
+        {% if estadisticas.por_responsable %}
+        <div class="chart-container">
+          <h2>Distribución por Responsable</h2>
+          <canvas id="chartResponsable"></canvas>
+        </div>
+        {% endif %}
+
+        {% if estadisticas.por_centro %}
+        <div class="chart-container">
+          <h2>Distribución por Centro de Responsabilidad</h2>
+          <canvas id="chartCentro"></canvas>
+        </div>
+        {% endif %}
+      </section>
+
+      <!-- Distribución por Estado -->
+      <section class="stats-section">
+        <h2>Distribución por Estado</h2>
+        <div class="stats-grid">
+          {% for estado, cantidad in estadisticas.por_estado.items() %}
+          <div class="stat-card status-{{ estado|lower|replace(' ', '-') }}">
+            <div class="stat-label">{{ estado }}</div>
+            <div class="stat-value">{{ cantidad }}</div>
+            {% if estadisticas.total > 0 %}
+            <div class="stat-percentage">{{ "%.1f"|format((cantidad / estadisticas.total * 100)) }}%</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Distribución por Responsable -->
+      {% if estadisticas.por_responsable %}
+      <section class="stats-section">
+        <h2>Distribución por Responsable</h2>
+        <div class="stats-list">
+          {% for responsable, cantidad in estadisticas.por_responsable.items() %}
+          <div class="stat-item">
+            <span class="stat-item-label">{{ responsable }}</span>
+            <div class="stat-item-bar">
+              <div class="stat-item-fill" style="width: {% if estadisticas.total > 0 %}{{ (cantidad / estadisticas.total * 100) }}{% else %}0{% endif %}%"></div>
+            </div>
+            <span class="stat-item-value">{{ cantidad }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Distribución por Centro -->
+      {% if estadisticas.por_centro %}
+      <section class="stats-section">
+        <h2>Distribución por Centro de Responsabilidad</h2>
+        <div class="stats-list">
+          {% for centro, cantidad in estadisticas.por_centro.items() %}
+          <div class="stat-item">
+            <span class="stat-item-label">{{ centro }}</span>
+            <div class="stat-item-bar">
+              <div class="stat-item-fill" style="width: {% if estadisticas.total > 0 %}{{ (cantidad / estadisticas.total * 100) }}{% else %}0{% endif %}%"></div>
+            </div>
+            <span class="stat-item-value">{{ cantidad }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Lista de Tareas Filtradas -->
+      <section class="tasks-section">
+        <h2>Tareas Filtradas ({{ estadisticas.total }})</h2>
+        {% if tareas %}
+          <ul class="task-list">
+            {% for tarea in tareas %}
+            <li class="task-item task-{{ tarea.situacion|lower|replace(' ', '-') }}">
+              <div class="task-header">
+                <span class="task-id">#{{ tarea.id }}</span>
+                <span class="task-text">{{ tarea.texto }}</span>
+                <span class="task-status status-{{ tarea.situacion|lower|replace(' ', '-') }}">
+                  {{ tarea.situacion }}
+                </span>
+              </div>
+
+              <div class="task-info">
+                <div class="info-item">
+                  <strong>Responsable:</strong>
+                  <span class="info-value">{% if tarea.responsable %}{{ tarea.responsable }}{% else %}<em>Sin asignar</em>{% endif %}</span>
+                </div>
+                <div class="info-item">
+                  <strong>Centro:</strong>
+                  <span class="info-value">{% if tarea.centro_responsabilidad %}{{ tarea.centro_responsabilidad }}{% else %}<em>Sin asignar</em>{% endif %}</span>
+                </div>
+                <div class="info-item">
+                  <strong>Plazo:</strong>
+                  <span class="info-value">{% if tarea.plazo %}{{ tarea.plazo }}{% else %}<em>Sin plazo</em>{% endif %}</span>
+                </div>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="no-tasks">No hay tareas que coincidan con los filtros seleccionados.</p>
+        {% endif %}
+      </section>
+    </main>
+
+    <footer>
+      <p>&copy; 2024 Planificador de Tareas - Sistema de Gestión</p>
+    </footer>
   </div>
-</nav>
 
-<script>
-  function cambiarProyecto() {
-    const select = document.getElementById("selectorProyecto");
-    const proyectoId = select.value;
-    if (!proyectoId) return;
-    // Va a /empresa/ir/<id> y según rol entra a Tablero o a Tareas
-    window.location.href = "/empresa/ir/" + proyectoId;
-  }
-</script>
-
-        <main>
-            <!-- Filtros -->
-            <section class="filters-section">
-                <h2>Filtros</h2>
-                <form method="GET" action="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}" class="filters-form">
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="centro">Centro de Responsabilidad:</label>
-                            <select name="centro" id="centro" class="filter-select">
-                                <option value="Todos" {% if filtros.centro == 'Todos' %}selected{% endif %}>Todos</option>
-                                {% for centro in centros %}
-                                    <option value="{{ centro }}" {% if filtros.centro == centro %}selected{% endif %}>{{ centro }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="filter-group">
-                            <label for="responsable">Responsable:</label>
-                            <select name="responsable" id="responsable" class="filter-select">
-                                <option value="Todos" {% if filtros.responsable == 'Todos' %}selected{% endif %}>Todos</option>
-                                {% for responsable in responsables %}
-                                    <option value="{{ responsable }}" {% if filtros.responsable == responsable %}selected{% endif %}>{{ responsable }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="filter-group">
-                            <label for="estado">Estado:</label>
-                            <select name="estado" id="estado" class="filter-select">
-                                <option value="Todos" {% if filtros.estado == 'Todos' %}selected{% endif %}>Todos</option>
-                                {% for estado in estados %}
-                                    <option value="{{ estado }}" {% if filtros.estado == estado %}selected{% endif %}>{{ estado }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="filter-group">
-                            <label for="plazo">Plazo:</label>
-                            <select name="plazo" id="plazo" class="filter-select">
-                                <option value="Todos" {% if filtros.plazo == 'Todos' %}selected{% endif %}>Todos</option>
-                                <option value="vencidas" {% if filtros.plazo == 'vencidas' %}selected{% endif %}>Vencidas</option>
-                                <option value="por_vencer" {% if filtros.plazo == 'por_vencer' %}selected{% endif %}>Por Vencer</option>
-                                <option value="sin_plazo" {% if filtros.plazo == 'sin_plazo' %}selected{% endif %}>Sin Plazo</option>
-                            </select>
-                        </div>
-
-                        <div class="filter-actions">
-                            <button type="submit" class="btn-filter">Aplicar Filtros</button>
-                            <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}" class="btn-clear">Limpiar</a>
-                        </div>
-                    </div>
-                </form>
-            </section>
-
-            <!-- Estadísticas Generales -->
-            <section class="stats-section">
-                <h2>Estadísticas Generales</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Total de Tareas</div>
-                        <div class="stat-value">{{ estadisticas_totales.total }}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Tareas Filtradas</div>
-                        <div class="stat-value">{{ estadisticas.total }}</div>
-                    </div>
-                    <div class="stat-card stat-warning">
-                        <div class="stat-label">Tareas Vencidas</div>
-                        <div class="stat-value">{{ estadisticas_totales.vencidas }}</div>
-                    </div>
-                    <div class="stat-card stat-info">
-                        <div class="stat-label">Por Vencer</div>
-                        <div class="stat-value">{{ estadisticas_totales.por_vencer }}</div>
-                    </div>
-                    <div class="stat-card stat-success">
-                        <div class="stat-label">Completadas</div>
-                        <div class="stat-value">{{ estadisticas.por_estado.get('Completada', 0) }}</div>
-                    </div>
-                    <div class="stat-card stat-primary">
-                        <div class="stat-label">Validadas</div>
-                        <div class="stat-value">{{ estadisticas.por_estado.get('Validada', 0) }}</div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Gráficos -->
-            <section class="charts-section">
-                <div class="chart-container">
-                    <h2>Distribución por Estado</h2>
-                    <canvas id="chartEstado"></canvas>
-                </div>
-
-                {% if estadisticas.por_responsable %}
-                <div class="chart-container">
-                    <h2>Distribución por Responsable</h2>
-                    <canvas id="chartResponsable"></canvas>
-                </div>
-                {% endif %}
-
-                {% if estadisticas.por_centro %}
-                <div class="chart-container">
-                    <h2>Distribución por Centro de Responsabilidad</h2>
-                    <canvas id="chartCentro"></canvas>
-                </div>
-                {% endif %}
-            </section>
-
-            <!-- Estadísticas por Estado -->
-            <section class="stats-section">
-                <h2>Distribución por Estado</h2>
-                <div class="stats-grid">
-                    {% for estado, cantidad in estadisticas.por_estado.items() %}
-                    <div class="stat-card status-{{ estado|lower|replace(' ', '-') }}">
-                        <div class="stat-label">{{ estado }}</div>
-                        <div class="stat-value">{{ cantidad }}</div>
-                        {% if estadisticas.total > 0 %}
-                        <div class="stat-percentage">{{ "%.1f"|format((cantidad / estadisticas.total * 100)) }}%</div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <!-- Estadísticas por Responsable -->
-            {% if estadisticas.por_responsable %}
-            <section class="stats-section">
-                <h2>Distribución por Responsable</h2>
-                <div class="stats-list">
-                    {% for responsable, cantidad in estadisticas.por_responsable.items() %}
-                    <div class="stat-item">
-                        <span class="stat-item-label">{{ responsable }}</span>
-                        <div class="stat-item-bar">
-                            <div class="stat-item-fill" style="width: {% if estadisticas.total > 0 %}{{ (cantidad / estadisticas.total * 100) }}{% else %}0{% endif %}%"></div>
-                        </div>
-                        <span class="stat-item-value">{{ cantidad }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-            </section>
-            {% endif %}
-
-            <!-- Estadísticas por Centro -->
-            {% if estadisticas.por_centro %}
-            <section class="stats-section">
-                <h2>Distribución por Centro de Responsabilidad</h2>
-                <div class="stats-list">
-                    {% for centro, cantidad in estadisticas.por_centro.items() %}
-                    <div class="stat-item">
-                        <span class="stat-item-label">{{ centro }}</span>
-                        <div class="stat-item-bar">
-                            <div class="stat-item-fill" style="width: {% if estadisticas.total > 0 %}{{ (cantidad / estadisticas.total * 100) }}{% else %}0{% endif %}%"></div>
-                        </div>
-                        <span class="stat-item-value">{{ cantidad }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-            </section>
-            {% endif %}
-
-            <!-- Lista de Tareas Filtradas -->
-            <section class="tasks-section">
-                <h2>Tareas Filtradas ({{ estadisticas.total }})</h2>
-                {% if tareas %}
-                    <ul class="task-list">
-                        {% for tarea in tareas %}
-                        <li class="task-item task-{{ tarea.situacion|lower|replace(' ', '-') }}">
-                            <div class="task-header">
-                                <span class="task-id">#{{ tarea.id }}</span>
-                                <span class="task-text">{{ tarea.texto }}</span>
-                                <span class="task-status status-{{ tarea.situacion|lower|replace(' ', '-') }}">
-                                    {{ tarea.situacion }}
-                                </span>
-                            </div>
-
-                            <div class="task-info">
-                                <div class="info-item">
-                                    <strong>Responsable:</strong>
-                                    <span class="info-value">{% if tarea.responsable %}{{ tarea.responsable }}{% else %}<em>Sin asignar</em>{% endif %}</span>
-                                </div>
-                                <div class="info-item">
-                                    <strong>Centro:</strong>
-                                    <span class="info-value">{% if tarea.centro_responsabilidad %}{{ tarea.centro_responsabilidad }}{% else %}<em>Sin asignar</em>{% endif %}</span>
-                                </div>
-                                <div class="info-item">
-                                    <strong>Plazo:</strong>
-                                    <span class="info-value">{% if tarea.plazo %}{{ tarea.plazo }}{% else %}<em>Sin plazo</em>{% endif %}</span>
-                                </div>
-                            </div>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p class="no-tasks">No hay tareas que coincidan con los filtros seleccionados.</p>
-                {% endif %}
-            </section>
-        </main>
-
-        <footer>
-            <p>&copy; 2024 Planificador de Tareas - Sistema de Gestión</p>
-        </footer>
-    </div>
-
-    <script>
-        // Gráfico de Estados
-        const ctxEstado = document.getElementById('chartEstado');
-        if (ctxEstado) {
-            new Chart(ctxEstado, {
-                type: 'doughnut',
-                data: {
-                    labels: {{ estadisticas.por_estado.keys()|list|tojson }},
-                    datasets: [{
-                        label: 'Tareas por Estado',
-                        data: {{ estadisticas.por_estado.values()|list|tojson }},
-                        backgroundColor: [
-                            '#ffc107',
-                            '#0d6efd',
-                            '#e67e22',
-                            '#27ae60',
-                            '#8e44ad'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    }
-                }
-            });
+  <script>
+    // Gráfico de Estados
+    const ctxEstado = document.getElementById('chartEstado');
+    if (ctxEstado) {
+      new Chart(ctxEstado, {
+        type: 'doughnut',
+        data: {
+          labels: {{ estadisticas.por_estado.keys()|list|tojson }},
+          datasets: [{
+            label: 'Tareas por Estado',
+            data: {{ estadisticas.por_estado.values()|list|tojson }},
+            backgroundColor: ['#ffc107', '#0d6efd', '#e67e22', '#27ae60', '#8e44ad']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { position: 'bottom' } }
         }
+      });
+    }
 
-        // Gráfico de Responsables
-        const ctxResponsable = document.getElementById('chartResponsable');
-        if (ctxResponsable) {
-            new Chart(ctxResponsable, {
-                type: 'bar',
-                data: {
-                    labels: {{ estadisticas.por_responsable.keys()|list|tojson }},
-                    datasets: [{
-                        label: 'Tareas por Responsable',
-                        data: {{ estadisticas.por_responsable.values()|list|tojson }},
-                        backgroundColor: '#3498db'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                }
-            });
+    // Gráfico de Responsables
+    const ctxResponsable = document.getElementById('chartResponsable');
+    if (ctxResponsable) {
+      new Chart(ctxResponsable, {
+        type: 'bar',
+        data: {
+          labels: {{ estadisticas.por_responsable.keys()|list|tojson }},
+          datasets: [{
+            label: 'Tareas por Responsable',
+            data: {{ estadisticas.por_responsable.values()|list|tojson }},
+            backgroundColor: '#3498db'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
+      });
+    }
 
-        // Gráfico de Centros
-        const ctxCentro = document.getElementById('chartCentro');
-        if (ctxCentro) {
-            new Chart(ctxCentro, {
-                type: 'bar',
-                data: {
-                    labels: {{ estadisticas.por_centro.keys()|list|tojson }},
-                    datasets: [{
-                        label: 'Tareas por Centro',
-                        data: {{ estadisticas.por_centro.values()|list|tojson }},
-                        backgroundColor: '#9b59b6'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                }
-            });
+    // Gráfico de Centros
+    const ctxCentro = document.getElementById('chartCentro');
+    if (ctxCentro) {
+      new Chart(ctxCentro, {
+        type: 'bar',
+        data: {
+          labels: {{ estadisticas.por_centro.keys()|list|tojson }},
+          datasets: [{
+            label: 'Tareas por Centro',
+            data: {{ estadisticas.por_centro.values()|list|tojson }},
+            backgroundColor: '#9b59b6'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
-    </script>
+      });
+    }
+  </script>
 </body>
 </html>
