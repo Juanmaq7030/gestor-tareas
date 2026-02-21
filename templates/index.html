@@ -58,40 +58,39 @@
         <div class="right">
           <span class="user-pill">{{ user.nombre }} ({{ user.rol }})</span>
 
-         <!-- ✅ Selector de Empresa + Proyecto (nuevo modelo ERP) -->
-<div class="topbar-context" style="display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
+          <!-- ✅ Selector de Empresa + Proyecto (nuevo modelo ERP) -->
+          <div class="topbar-context" style="display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
 
-  <div class="empresa-label">
-    🏢 <strong>{{ empresa_nombre }}</strong>
-  </div>
+            <div class="empresa-label">
+              🏢 <strong>{{ empresa_nombre }}</strong>
+            </div>
 
-  <div class="proyecto-selector" style="display:flex; align-items:center; gap:8px;">
-    📁 <span>Proyecto:</span>
+            <div class="proyecto-selector" style="display:flex; align-items:center; gap:8px;">
+              📁 <span>Proyecto:</span>
 
-    <select class="selector-proyecto"
-            onchange="cambiarProyecto(this)"
-            style="padding:6px 10px; border-radius:8px; border:1px solid #ccc; cursor:pointer;">
+              <select class="selector-proyecto"
+                      onchange="cambiarProyecto(this)"
+                      style="padding:6px 10px; border-radius:8px; border:1px solid #ccc; cursor:pointer;">
 
-      {% for p in proyectos_usuario %}
-        <option value="{{ p.id }}" {% if p.id == proyecto_id %}selected{% endif %}>
-          {{ p.nombre }}
-        </option>
-      {% endfor %}
+                {% for p in proyectos_usuario %}
+                  <option value="{{ p.id }}" {% if p.id == proyecto_id %}selected{% endif %}>
+                    {{ p.nombre }}
+                  </option>
+                {% endfor %}
 
-    </select>
-  </div>
+              </select>
+            </div>
 
-</div>
+          </div>
 
-<script>
-function cambiarProyecto(select){
-    const proyectoId = select.value;
-    window.location.href = "/empresa/ir/" + proyectoId;
-}
-</script>
+          <script>
+          function cambiarProyecto(select){
+              const proyectoId = select.value;
+              window.location.href = "/empresa/ir/" + proyectoId;
+          }
+          </script>
 
-
-          <a class="btn small secondary" href="{{ url_for('empresa_dashboard') }}">⬅ Panel</a>
+          <!-- ❌ Eliminado botón Panel porque provocaba error 500 -->
           <a class="btn small" href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">📊 Tablero</a>
           <a class="btn small" href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">📄 Informe</a>
           <a class="btn small secondary" href="{{ url_for('about') }}">ℹ️ Acerca de</a>
@@ -103,7 +102,6 @@ function cambiarProyecto(select){
           <a class="btn small secondary" href="{{ url_for('logout') }}">Salir</a>
         </div>
       </div>
-    
     </header>
 
     <!-- CREAR TAREA -->
