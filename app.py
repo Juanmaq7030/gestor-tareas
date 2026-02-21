@@ -588,6 +588,50 @@ def sa_dashboard():
     return render_template("admin_dashboard.html", resumen=resumen)
 
 
+# ================= SUPERADMIN: SECCIONES (LISTADOS) =================
+@app.route("/sa/empresas")
+@login_required
+@require_roles("superadmin")
+@no_cache
+def sa_empresas():
+    empresas = empresas_data()["empresas"]
+    return render_template("sa_empresas.html", empresas=empresas)
+
+
+@app.route("/sa/usuarios")
+@login_required
+@require_roles("superadmin")
+@no_cache
+def sa_usuarios():
+    usuarios = usuarios_data()["usuarios"]
+    empresas = empresas_data()["empresas"]
+    emp_map = {e.get("id"): e.get("nombre") for e in empresas}
+
+    usuarios_out = []
+    for u in usuarios:
+        uu = dict(u)
+        uu["empresa_nombre"] = emp_map.get(uu.get("empresa_id"), "-")
+        usuarios_out.append(uu)
+
+    return render_template("sa_usuarios.html", usuarios=usuarios_out)
+
+@app.route("/sa/proyectos")
+@login_required
+@require_roles("superadmin")
+@no_cache
+def sa_proyectos():
+    proyectos = proyectos_data()["proyectos"]
+    empresas = empresas_data()["empresas"]
+    emp_map = {e.get("id"): e.get("nombre") for e in empresas}
+
+    proyectos_out = []
+    for p in proyectos:
+        pp = dict(p)
+        pp["empresa_nombre"] = emp_map.get(pp.get("empresa_id"), "-")
+        proyectos_out.append(pp)
+
+    return render_template("sa_proyectos.html", proyectos=proyectos_out)
+
 @app.route("/sa/empresa/nueva", methods=["GET", "POST"])
 @login_required
 @require_roles("superadmin")
