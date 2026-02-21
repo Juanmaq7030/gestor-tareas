@@ -970,11 +970,16 @@ def empresa_ir(proyecto_id):
     return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
 
 # ✅ BOTÓN "Volver al Panel" (Opción A) desde tablero.html
-@app.route("/cambiar-proyecto", methods=["POST"])
+@app.route("/cambiar-proyecto", methods=["GET", "POST"])
 @login_required
 @require_roles("supervisor", "ejecutor")
 def cambiar_proyecto():
-    clear_active_project()
+    # Limpia el proyecto activo y vuelve al panel empresa (siempre)
+    try:
+        clear_active_project()
+    except Exception:
+        # aunque la sesión esté rara, igual volvemos al panel
+        pass
     return redirect(url_for("empresa_dashboard"))
 
 # ================= SELECCIONAR PROYECTO =================
