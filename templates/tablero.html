@@ -54,11 +54,9 @@
           </div>
 
           <!-- ✅ Volver al panel Empresa (POST al endpoint cambiar_proyecto) -->
-          <form method="POST" action="{{ url_for('cambiar_proyecto') }}" class="inline">
-            <button type="submit" class="link-btn" style="color:#fff;">
-              ⬅️ Volver al Panel
-            </button>
-          </form>
+          <a href="{{ url_for('cambiar_proyecto') }}" class="link-btn" style="color:#fff; text-decoration:none;">
+  ⬅️ Volver al Panel
+</a>
 
           <a href="{{ url_for('logout') }}">Salir</a>
         </div>
