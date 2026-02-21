@@ -1,6 +1,6 @@
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    send_from_directory, make_response, session, flash, abort
+    send_from_directory, make_response, jsonify, session, flash, abort
 )
 import os
 import time
@@ -8,6 +8,7 @@ import json
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.routing import BuildError
 from functools import wraps
 
 # ================= APP =================
@@ -32,6 +33,28 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 EMPRESAS_FILE = os.path.join(DATA_DIR, "empresas.json")
 PROYECTOS_FILE = os.path.join(DATA_DIR, "proyectos.json")
 USUARIOS_FILE = os.path.join(DATA_DIR, "usuarios.json")
+
+
+# ================== SAFE url_for (EVITA 500 POR BuildError) ==================
+def safe_url_for(endpoint, **values):
+    """
+    Evita Internal Server Error cuando un template llama url_for()
+    con un endpoint inexistente o faltan params.
+    - Devuelve '#' si falla.
+    - Registra en consola para detectar cuál endpoint falta.
+    """
+    try:
+        return url_for(endpoint, **values)
+    except BuildError as e:
+        try:
+            print(f"⚠️ BuildError url_for('{endpoint}', {values}): {e}")
+        except Exception:
+            pass
+        return "#"
+
+
+# Reemplaza url_for en templates por la versión segura
+app.jinja_env.globals['url_for'] = safe_url_for
 
 
 # ================= UTILIDADES JSON =================
@@ -160,7 +183,7 @@ def clear_active_project():
 
 def _get_project(proyecto_id: int):
     proyectos = proyectos_data()["proyectos"]
-    return next((p for p in proyectos if int(p.get("id")) == int(proyecto_id)), None)
+    return next((p for p in proyectos if p.get("id") == int(proyecto_id)), None)
 
 
 def user_can_access_project(u, proyecto_id: int) -> bool:
@@ -194,6 +217,7 @@ def load_tareas(proyecto_id: int):
     if tareas:
         contador_id = max(contador_id, max(t.get('id', 0) for t in tareas) + 1)
 
+    # migración suave de estados antiguos
     cambios = False
     for t in tareas:
         estado_antiguo = t.get('situacion', 'Pendiente')
@@ -258,11 +282,11 @@ def actualizar_tarea(proyecto_id, tid, responsable=None, centro=None, plazo=None
     tareas, contador_id = load_tareas(proyecto_id)
     for t in tareas:
         if t.get('id') == tid:
-            if responsable is not None: t['responsable'] = responsable.strip()
-            if centro is not None: t['centro_responsabilidad'] = centro.strip()
-            if plazo is not None: t['plazo'] = plazo.strip()
-            if observacion is not None: t['observacion'] = observacion.strip()
-            if recursos is not None: t['recursos'] = recursos.strip()
+            if responsable is not None: t['responsable'] = (responsable or '').strip()
+            if centro is not None: t['centro_responsabilidad'] = (centro or '').strip()
+            if plazo is not None: t['plazo'] = (plazo or '').strip()
+            if observacion is not None: t['observacion'] = (observacion or '').strip()
+            if recursos is not None: t['recursos'] = (recursos or '').strip()
             save_tareas(proyecto_id, tareas, contador_id)
             return True
     return False
@@ -469,7 +493,7 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
     users.append({
         "id": sup_id,
         "nombre": "Supervisor",
-        "correo": correo_sup.strip().lower(),
+        "correo": correo_sup,
         "password_hash": generate_password_hash(pass_sup),
         "rol": "supervisor",
         "empresa_id": empresa_id
@@ -479,7 +503,7 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
     users.append({
         "id": eje_id,
         "nombre": "Ejecutor",
-        "correo": correo_eje.strip().lower(),
+        "correo": correo_eje,
         "password_hash": generate_password_hash(pass_eje),
         "rol": "ejecutor",
         "empresa_id": empresa_id
@@ -538,7 +562,6 @@ def root():
 
     pid = active_project_id()
     if pid:
-        # supervisor => tablero, ejecutor => tareas
         if u.get("rol") == "supervisor":
             return redirect(url_for("proyecto_tablero", proyecto_id=pid))
         return redirect(url_for("proyecto_index", proyecto_id=pid))
@@ -550,6 +573,7 @@ def root():
 @app.route("/sa")
 @login_required
 @require_roles("superadmin")
+@no_cache
 def sa_dashboard():
     empresas = empresas_data()["empresas"]
     proyectos = proyectos_data()["proyectos"]
@@ -567,6 +591,7 @@ def sa_dashboard():
 @app.route("/sa/empresa/nueva", methods=["GET", "POST"])
 @login_required
 @require_roles("superadmin")
+@no_cache
 def sa_empresa_nueva():
     if request.method == "POST":
         nombre_empresa = (request.form.get("nombre_empresa") or "").strip()
@@ -599,7 +624,7 @@ def sa_empresa_nueva():
                 max_users, max_proys
             )
             flash("Empresa creada con proyecto y roles (Supervisor/Ejecutor).", "ok")
-            return redirect(url_for("sa_config"))
+            return redirect(url_for("sa_dashboard"))
         except Exception as e:
             flash(str(e), "error")
             return render_template("sa_empresa_nueva.html")
@@ -607,7 +632,7 @@ def sa_empresa_nueva():
     return render_template("sa_empresa_nueva.html")
 
 
-# ======================= SUPERADMIN: CONFIG (PANEL ÚNICO POR EMPRESA) =======================
+# ======================= SUPERADMIN CONFIG (panel único por empresa) =======================
 def _bool(v):
     return str(v).strip().lower() in ("1", "true", "on", "yes", "si", "sí")
 
@@ -625,14 +650,12 @@ def sa_config():
     proyectos = pd_.get("proyectos", [])
     usuarios = ud.get("usuarios", [])
 
-    # empresa seleccionada por querystring (?empresa_id=)
     empresa_id = request.args.get("empresa_id", type=int)
 
     empresa_sel = None
     if empresas:
         if empresa_id:
             empresa_sel = next((e for e in empresas if int(e.get("id")) == int(empresa_id)), None)
-
         if not empresa_sel:
             empresas_sorted_tmp = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0))))
             empresa_sel = empresas_sorted_tmp[0]
@@ -640,11 +663,11 @@ def sa_config():
 
     empresas_sorted = sorted(empresas, key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0))))
 
-    proyectos_sel, usuarios_sel = [], []
+    proyectos_sel = []
+    usuarios_sel = []
     if empresa_sel:
         proyectos_sel = [p for p in proyectos if p.get("empresa_id") == empresa_id]
         usuarios_sel = [u for u in usuarios if u.get("empresa_id") == empresa_id]
-
         proyectos_sel = sorted(proyectos_sel, key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0))))
         usuarios_sel = sorted(usuarios_sel, key=lambda x: (str(x.get("correo", "")).lower(), int(x.get("id", 0))))
 
@@ -728,14 +751,13 @@ def sa_proyecto_editar(proyecto_id):
     pd_ = proyectos_data()
     proyectos = pd_["proyectos"]
 
-    nombre = (request.form.get("nombre") or "").strip()
-    terminado = _bool(request.form.get("terminado"))
-
     p = next((x for x in proyectos if x.get("id") == proyecto_id), None)
     if not p:
         abort(404)
 
     empresa_id = p.get("empresa_id")
+    nombre = (request.form.get("nombre") or "").strip()
+    terminado = _bool(request.form.get("terminado"))
 
     if nombre:
         p["nombre"] = nombre
@@ -763,7 +785,6 @@ def sa_proyecto_eliminar_post(proyecto_id):
     p = next((x for x in proyectos if x.get("id") == proyecto_id), None)
     if not p:
         abort(404)
-
     empresa_id = p.get("empresa_id")
 
     proyectos = [x for x in proyectos if x.get("id") != proyecto_id]
@@ -838,15 +859,15 @@ def sa_usuario_editar(user_id):
     ud = usuarios_data()
     usuarios = ud["usuarios"]
 
-    nombre = (request.form.get("nombre") or "").strip()
-    correo = (request.form.get("correo") or "").strip().lower()
-    rol = (request.form.get("rol") or "").strip().lower()
-
     u = next((x for x in usuarios if x.get("id") == user_id), None)
     if not u:
         abort(404)
 
     empresa_id = u.get("empresa_id")
+
+    nombre = (request.form.get("nombre") or "").strip()
+    correo = (request.form.get("correo") or "").strip().lower()
+    rol = (request.form.get("rol") or "").strip().lower()
 
     if nombre:
         u["nombre"] = nombre
@@ -958,13 +979,15 @@ def empresa_dashboard():
 
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
 
-    proys = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)]
+    proys = [
+        p for p in proyectos
+        if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
+    ]
 
     avances = []
     for p in proys:
         tareas, _ = load_tareas(p.get("id"))
         est = obtener_estadisticas(tareas)
-
         total = est["total"]
         comp = est["por_estado"].get("Completada", 0)
         val = est["por_estado"].get("Validada", 0)
@@ -974,7 +997,7 @@ def empresa_dashboard():
     return render_template("empresa_dashboard.html", empresa=empresa, avances=avances, user=u)
 
 
-# ✅ CAMBIAR PROYECTO (LO USA EL SELECT DEL TABLERO Y DEL INDEX)
+# Ruta que usan tus selectores: /empresa/ir/<id>
 @app.route("/empresa/ir/<int:proyecto_id>")
 @login_required
 @require_roles("supervisor", "ejecutor")
@@ -990,6 +1013,23 @@ def empresa_ir(proyecto_id):
     return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
 
 
+# Compatibilidad: algunos templates aún llamaban cambiar_proyecto
+@app.route("/cambiar_proyecto", methods=["POST", "GET"])
+@login_required
+def cambiar_proyecto():
+    """
+    Compatibilidad. Antes existía botón 'Volver al Panel'.
+    Ahora simplemente vuelve a /empresa (si corresponde) o a seleccionar proyecto.
+    """
+    u = current_user()
+    clear_active_project()
+    if not u:
+        return redirect(url_for("login"))
+    if u.get("rol") == "superadmin":
+        return redirect(url_for("sa_dashboard"))
+    return redirect(url_for("empresa_dashboard"))
+
+
 # ================= SELECCIONAR PROYECTO =================
 @app.route("/seleccionar-proyecto", methods=["GET"])
 @login_required
@@ -999,7 +1039,10 @@ def seleccionar_proyecto():
     u = current_user()
     proyectos = proyectos_data()["proyectos"]
 
-    proys = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)]
+    proys = [
+        p for p in proyectos
+        if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
+    ]
 
     if not proys:
         flash("Tu empresa no tiene proyectos activos. Pide al Superadmin que cree o reactive uno.", "error")
@@ -1028,7 +1071,10 @@ def proyecto_index(proyecto_id):
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
 
     proyectos = proyectos_data()["proyectos"]
-    proyectos_usuario = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)]
+    proyectos_usuario = [
+        p for p in proyectos
+        if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
+    ]
 
     return render_template(
         "index.html",
@@ -1126,7 +1172,10 @@ def proyecto_tablero(proyecto_id):
     empresa = next((e for e in empresas if e.get("id") == u.get("empresa_id")), None)
 
     proyectos = proyectos_data()["proyectos"]
-    proyectos_usuario = [p for p in proyectos if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)]
+    proyectos_usuario = [
+        p for p in proyectos
+        if p.get("empresa_id") == u.get("empresa_id") and not p.get("terminado", False)
+    ]
 
     tareas_filtradas = filtrar_tareas(
         tareas,
