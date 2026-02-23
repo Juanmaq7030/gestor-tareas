@@ -122,7 +122,7 @@ def current_user():
     uid = session.get("user_id")
     if not uid:
         return None
-    users = usuarios_data()["usuarios"]
+    users = usuarios_data().get("usuarios", [])
     return next((u for u in users if u.get("id") == uid), None)
 
 
@@ -167,8 +167,8 @@ def clear_active_project():
 
 
 def _get_project(proyecto_id: int):
-    proyectos = proyectos_data()["proyectos"]
-    return next((p for p in proyectos if int(p.get("id")) == int(proyecto_id)), None)
+    proyectos = proyectos_data().get("proyectos", [])
+    return next((p for p in proyectos if int(p.get("id", 0)) == int(proyecto_id)), None)
 
 
 def user_can_access_project(u, proyecto_id: int) -> bool:
@@ -179,7 +179,10 @@ def user_can_access_project(u, proyecto_id: int) -> bool:
         return False
     if p.get("terminado", False):
         return False
-    return int(p.get("empresa_id")) == int(u.get("empresa_id"))
+    try:
+        return int(p.get("empresa_id")) == int(u.get("empresa_id"))
+    except Exception:
+        return False
 
 
 def require_project_access(f):
@@ -259,7 +262,7 @@ def cambiar_estado(proyecto_id, tid, estado, user):
         return False
     tareas, contador_id = load_tareas(proyecto_id)
     for t in tareas:
-        if int(t.get("id")) == int(tid) and estado in ESTADOS:
+        if int(t.get("id", 0)) == int(tid) and estado in ESTADOS:
             t["situacion"] = estado
             save_tareas(proyecto_id, tareas, contador_id)
             return True
@@ -269,7 +272,7 @@ def cambiar_estado(proyecto_id, tid, estado, user):
 def actualizar_tarea(proyecto_id, tid, responsable=None, centro=None, plazo=None, observacion=None, recursos=None):
     tareas, contador_id = load_tareas(proyecto_id)
     for t in tareas:
-        if int(t.get('id')) == int(tid):
+        if int(t.get('id', 0)) == int(tid):
             if responsable is not None:
                 t['responsable'] = (responsable or '').strip()
             if centro is not None:
@@ -288,7 +291,7 @@ def actualizar_tarea(proyecto_id, tid, responsable=None, centro=None, plazo=None
 def agregar_documento(proyecto_id, tid, filename):
     tareas, contador_id = load_tareas(proyecto_id)
     for t in tareas:
-        if int(t.get('id')) == int(tid):
+        if int(t.get('id', 0)) == int(tid):
             t.setdefault('documentos', [])
             if filename not in t['documentos']:
                 t['documentos'].append(filename)
@@ -401,7 +404,7 @@ def ensure_superadmin():
     force_reset = os.getenv("ADMIN_FORCE_RESET", "0") == "1"
 
     ud = usuarios_data()
-    users = ud["usuarios"]
+    users = ud.get("usuarios", [])
 
     by_email = next((u for u in users if (u.get("correo", "").strip().lower() == admin_email)), None)
     if by_email:
@@ -443,7 +446,12 @@ def ensure_superadmin():
 
 
 # ================= CREACIÓN EMPRESA+PROYECTO+ROLES =================
-def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_sup, pass_sup, correo_eje, pass_eje, max_users=5, max_proys=1):
+def crear_empresa_con_proyecto_y_roles(
+    nombre_empresa, nombre_proyecto,
+    correo_sup, pass_sup,
+    correo_eje, pass_eje,
+    max_users=5, max_proys=1
+):
     ensure_core_files()
 
     ed = empresas_data()
@@ -517,7 +525,7 @@ def login():
         ident = (request.form.get("correo") or request.form.get("username") or request.form.get("usuario") or "").strip().lower()
         password = request.form.get("password") or ""
 
-        users = usuarios_data()["usuarios"]
+        users = usuarios_data().get("usuarios", [])
         u = next((x for x in users if (x.get("correo", "").strip().lower() == ident)), None)
 
         if not u or not check_password_hash(u.get("password_hash", ""), password):
@@ -568,9 +576,9 @@ def root():
 @login_required
 @require_roles("superadmin")
 def sa_dashboard():
-    empresas = empresas_data()["empresas"]
-    proyectos = proyectos_data()["proyectos"]
-    usuarios = usuarios_data()["usuarios"]
+    empresas = empresas_data().get("empresas", [])
+    proyectos = proyectos_data().get("proyectos", [])
+    usuarios = usuarios_data().get("usuarios", [])
 
     resumen = []
     for e in empresas:
@@ -586,7 +594,7 @@ def sa_dashboard():
 @login_required
 @require_roles("superadmin")
 def sa_empresas():
-    empresas = empresas_data()["empresas"]
+    empresas = empresas_data().get("empresas", [])
     return render_template("sa_empresas.html", empresas=empresas)
 
 
@@ -594,8 +602,8 @@ def sa_empresas():
 @login_required
 @require_roles("superadmin")
 def sa_usuarios():
-    usuarios = usuarios_data()["usuarios"]
-    empresas = empresas_data()["empresas"]
+    usuarios = usuarios_data().get("usuarios", [])
+    empresas = empresas_data().get("empresas", [])
     emp_map = {e.get("id"): e.get("nombre") for e in empresas}
     usuarios_out = []
     for u in usuarios:
@@ -609,8 +617,8 @@ def sa_usuarios():
 @login_required
 @require_roles("superadmin")
 def sa_proyectos():
-    proyectos = proyectos_data()["proyectos"]
-    empresas = empresas_data()["empresas"]
+    proyectos = proyectos_data().get("proyectos", [])
+    empresas = empresas_data().get("empresas", [])
     emp_map = {e.get("id"): e.get("nombre") for e in empresas}
     proyectos_out = []
     for p in proyectos:
@@ -686,7 +694,7 @@ def sa_config():
     empresa_sel = None
     if empresas:
         if empresa_id:
-            empresa_sel = next((e for e in empresas if int(e.get("id")) == int(empresa_id)), None)
+            empresa_sel = next((e for e in empresas if int(e.get("id", 0)) == int(empresa_id)), None)
 
         if not empresa_sel:
             empresas_sorted_tmp = sorted(
@@ -704,8 +712,8 @@ def sa_config():
     proyectos_sel = []
     usuarios_sel = []
     if empresa_sel:
-        proyectos_sel = [p for p in proyectos if int(p.get("empresa_id")) == int(empresa_id)]
-        usuarios_sel = [u for u in usuarios if int(u.get("empresa_id")) == int(empresa_id)]
+        proyectos_sel = [p for p in proyectos if int(p.get("empresa_id", 0)) == int(empresa_id)]
+        usuarios_sel = [u for u in usuarios if int(u.get("empresa_id", 0)) == int(empresa_id)]
 
         proyectos_sel = sorted(proyectos_sel, key=lambda x: (str(x.get("nombre", "")).lower(), int(x.get("id", 0))))
         usuarios_sel = sorted(usuarios_sel, key=lambda x: (str(x.get("correo", "")).lower(), int(x.get("id", 0))))
@@ -725,12 +733,12 @@ def sa_config():
 @require_roles("superadmin")
 def sa_empresa_editar(empresa_id):
     ed = empresas_data()
-    empresas = ed["empresas"]
+    empresas = ed.get("empresas", [])
 
     nombre = (request.form.get("nombre") or "").strip()
     activa = _bool(request.form.get("activa"))
 
-    e = next((x for x in empresas if int(x.get("id")) == int(empresa_id)), None)
+    e = next((x for x in empresas if int(x.get("id", 0)) == int(empresa_id)), None)
     if not e:
         abort(404)
 
@@ -752,17 +760,17 @@ def sa_empresa_eliminar(empresa_id):
     pd_ = proyectos_data()
     ud = usuarios_data()
 
-    empresas = ed["empresas"]
-    proyectos = pd_["proyectos"]
-    usuarios = ud["usuarios"]
+    empresas = ed.get("empresas", [])
+    proyectos = pd_.get("proyectos", [])
+    usuarios = ud.get("usuarios", [])
 
-    proys_emp = [p for p in proyectos if int(p.get("empresa_id")) == int(empresa_id)]
+    proys_emp = [p for p in proyectos if int(p.get("empresa_id", 0)) == int(empresa_id)]
     for p in proys_emp:
         _safe_remove(tareas_file(p.get("id")))
 
-    proyectos = [p for p in proyectos if int(p.get("empresa_id")) != int(empresa_id)]
-    usuarios = [u for u in usuarios if int(u.get("empresa_id")) != int(empresa_id)]
-    empresas = [e for e in empresas if int(e.get("id")) != int(empresa_id)]
+    proyectos = [p for p in proyectos if int(p.get("empresa_id", 0)) != int(empresa_id)]
+    usuarios = [u for u in usuarios if int(u.get("empresa_id", 0)) != int(empresa_id)]
+    empresas = [e for e in empresas if int(e.get("id", 0)) != int(empresa_id)]
 
     ed["empresas"] = empresas
     pd_["proyectos"] = proyectos
@@ -786,14 +794,14 @@ def sa_proyecto_nuevo(empresa_id):
         return redirect(url_for("sa_config", empresa_id=empresa_id))
 
     ed = empresas_data()
-    empresa = next((e for e in ed["empresas"] if int(e.get("id")) == int(empresa_id)), None)
+    empresa = next((e for e in ed.get("empresas", []) if int(e.get("id", 0)) == int(empresa_id)), None)
     if not empresa:
         abort(404)
 
     pd_ = proyectos_data()
-    proyectos = pd_["proyectos"]
+    proyectos = pd_.get("proyectos", [])
 
-    proyectos_emp = [p for p in proyectos if int(p.get("empresa_id")) == int(empresa_id)]
+    proyectos_emp = [p for p in proyectos if int(p.get("empresa_id", 0)) == int(empresa_id)]
     max_proys = int(empresa.get("licencia_max_proyectos", 1) or 1)
 
     if len(proyectos_emp) >= max_proys:
@@ -815,21 +823,23 @@ def sa_proyecto_nuevo(empresa_id):
     flash("Proyecto creado ✅", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
+
+# ⚠️ IMPORTANTE: DEBE EXISTIR SOLO UNA VEZ EN TODO EL ARCHIVO
 @app.route("/sa/proyecto/<int:proyecto_id>/editar", methods=["POST"])
 @login_required
 @require_roles("superadmin")
 def sa_proyecto_editar(proyecto_id):
     pd_ = proyectos_data()
-    proyectos = pd_["proyectos"]
+    proyectos = pd_.get("proyectos", [])
 
     nombre = (request.form.get("nombre") or "").strip()
     terminado = _bool(request.form.get("terminado"))
 
-    p = next((x for x in proyectos if x.get("id") == proyecto_id), None)
+    p = next((x for x in proyectos if int(x.get("id", 0)) == int(proyecto_id)), None)
     if not p:
         abort(404)
 
-    empresa_id = p.get("empresa_id")  # ✅ para volver a la empresa correcta
+    empresa_id = p.get("empresa_id")
 
     if nombre:
         p["nombre"] = nombre
@@ -852,15 +862,15 @@ def sa_proyecto_editar(proyecto_id):
 @require_roles("superadmin")
 def sa_proyecto_eliminar_post(proyecto_id):
     pd_ = proyectos_data()
-    proyectos = pd_["proyectos"]
+    proyectos = pd_.get("proyectos", [])
 
-    p = next((x for x in proyectos if int(x.get("id")) == int(proyecto_id)), None)
+    p = next((x for x in proyectos if int(x.get("id", 0)) == int(proyecto_id)), None)
     if not p:
         abort(404)
 
     empresa_id = p.get("empresa_id")
 
-    proyectos = [x for x in proyectos if int(x.get("id")) != int(proyecto_id)]
+    proyectos = [x for x in proyectos if int(x.get("id", 0)) != int(proyecto_id)]
     pd_["proyectos"] = proyectos
     _write_json(PROYECTOS_FILE, pd_)
 
@@ -891,14 +901,14 @@ def sa_usuario_nuevo(empresa_id):
         return redirect(url_for("sa_config", empresa_id=empresa_id))
 
     ed = empresas_data()
-    empresa = next((e for e in ed["empresas"] if int(e.get("id")) == int(empresa_id)), None)
+    empresa = next((e for e in ed.get("empresas", []) if int(e.get("id", 0)) == int(empresa_id)), None)
     if not empresa:
         abort(404)
 
     ud = usuarios_data()
-    usuarios = ud["usuarios"]
+    usuarios = ud.get("usuarios", [])
 
-    usuarios_emp = [u for u in usuarios if int(u.get("empresa_id")) == int(empresa_id)]
+    usuarios_emp = [u for u in usuarios if int(u.get("empresa_id", 0)) == int(empresa_id)]
     max_users = int(empresa.get("licencia_max_usuarios", 5) or 5)
 
     if len(usuarios_emp) >= max_users:
@@ -931,9 +941,9 @@ def sa_usuario_nuevo(empresa_id):
 @require_roles("superadmin")
 def sa_usuario_editar(user_id):
     ud = usuarios_data()
-    usuarios = ud["usuarios"]
+    usuarios = ud.get("usuarios", [])
 
-    u = next((x for x in usuarios if int(x.get("id")) == int(user_id)), None)
+    u = next((x for x in usuarios if int(x.get("id", 0)) == int(user_id)), None)
     if not u:
         abort(404)
 
@@ -947,7 +957,7 @@ def sa_usuario_editar(user_id):
         u["nombre"] = nombre
 
     if correo:
-        existe = any((x.get("id") != user_id and (x.get("correo", "").strip().lower() == correo)) for x in usuarios)
+        existe = any((int(x.get("id", 0)) != int(user_id) and (x.get("correo", "").strip().lower() == correo)) for x in usuarios)
         if existe:
             flash("Ese correo ya existe en otro usuario.", "error")
             return redirect(url_for("sa_config", empresa_id=empresa_id))
@@ -970,14 +980,14 @@ def sa_usuario_editar(user_id):
 @require_roles("superadmin")
 def sa_usuario_reset_password(user_id):
     ud = usuarios_data()
-    usuarios = ud["usuarios"]
+    usuarios = ud.get("usuarios", [])
 
     new_pass = request.form.get("new_password") or ""
     if len(new_pass) < 6:
         flash("La nueva contraseña debe tener al menos 6 caracteres.", "error")
         return redirect(url_for("sa_config"))
 
-    u = next((x for x in usuarios if int(x.get("id")) == int(user_id)), None)
+    u = next((x for x in usuarios if int(x.get("id", 0)) == int(user_id)), None)
     if not u:
         abort(404)
 
@@ -996,12 +1006,12 @@ def sa_usuario_reset_password(user_id):
 @require_roles("superadmin")
 def sa_usuario_eliminar_post(user_id):
     ud = usuarios_data()
-    usuarios = ud["usuarios"]
+    usuarios = ud.get("usuarios", [])
 
-    u = next((x for x in usuarios if int(x.get("id")) == int(user_id)), None)
+    u = next((x for x in usuarios if int(x.get("id", 0)) == int(user_id)), None)
     empresa_id = u.get("empresa_id") if u else None
 
-    usuarios = [uu for uu in usuarios if int(uu.get("id")) != int(user_id)]
+    usuarios = [uu for uu in usuarios if int(uu.get("id", 0)) != int(user_id)]
     ud["usuarios"] = usuarios
     _write_json(USUARIOS_FILE, ud)
 
@@ -1016,14 +1026,14 @@ def sa_usuario_eliminar_post(user_id):
 @no_cache
 def empresa_dashboard():
     u = current_user()
-    empresas = empresas_data()["empresas"]
-    proyectos = proyectos_data()["proyectos"]
+    empresas = empresas_data().get("empresas", [])
+    proyectos = proyectos_data().get("proyectos", [])
 
-    empresa = next((e for e in empresas if int(e.get("id")) == int(u.get("empresa_id"))), None)
+    empresa = next((e for e in empresas if int(e.get("id", 0)) == int(u.get("empresa_id"))), None)
 
     proys = [
         p for p in proyectos
-        if int(p.get("empresa_id")) == int(u.get("empresa_id")) and not p.get("terminado", False)
+        if int(p.get("empresa_id", 0)) == int(u.get("empresa_id")) and not p.get("terminado", False)
     ]
 
     avances = []
@@ -1061,11 +1071,11 @@ def empresa_ir(proyecto_id):
 @no_cache
 def seleccionar_proyecto():
     u = current_user()
-    proyectos = proyectos_data()["proyectos"]
+    proyectos = proyectos_data().get("proyectos", [])
 
     proys = [
         p for p in proyectos
-        if int(p.get("empresa_id")) == int(u.get("empresa_id")) and not p.get("terminado", False)
+        if int(p.get("empresa_id", 0)) == int(u.get("empresa_id")) and not p.get("terminado", False)
     ]
 
     if not proys:
@@ -1091,13 +1101,13 @@ def proyecto_index(proyecto_id):
     tareas, _ = load_tareas(proyecto_id)
     u = current_user()
 
-    empresas = empresas_data()["empresas"]
-    empresa = next((e for e in empresas if int(e.get("id")) == int(u.get("empresa_id"))), None)
+    empresas = empresas_data().get("empresas", [])
+    empresa = next((e for e in empresas if int(e.get("id", 0)) == int(u.get("empresa_id"))), None)
 
-    proyectos = proyectos_data()["proyectos"]
+    proyectos = proyectos_data().get("proyectos", [])
     proyectos_usuario = [
         p for p in proyectos
-        if int(p.get("empresa_id")) == int(u.get("empresa_id")) and not p.get("terminado", False)
+        if int(p.get("empresa_id", 0)) == int(u.get("empresa_id")) and not p.get("terminado", False)
     ]
 
     return render_template(
@@ -1192,13 +1202,13 @@ def proyecto_tablero(proyecto_id):
 
     u = current_user()
 
-    empresas = empresas_data()["empresas"]
-    empresa = next((e for e in empresas if int(e.get("id")) == int(u.get("empresa_id"))), None)
+    empresas = empresas_data().get("empresas", [])
+    empresa = next((e for e in empresas if int(e.get("id", 0)) == int(u.get("empresa_id"))), None)
 
-    proyectos = proyectos_data()["proyectos"]
+    proyectos = proyectos_data().get("proyectos", [])
     proyectos_usuario = [
         p for p in proyectos
-        if int(p.get("empresa_id")) == int(u.get("empresa_id")) and not p.get("terminado", False)
+        if int(p.get("empresa_id", 0)) == int(u.get("empresa_id")) and not p.get("terminado", False)
     ]
 
     tareas_filtradas = filtrar_tareas(
@@ -1282,3 +1292,7 @@ def about():
 
 # ================= INIT =================
 ensure_superadmin()
+
+if __name__ == "__main__":
+    # En Render NO se usa esto (usa gunicorn), pero sirve local.
+    app.run(debug=True, host="0.0.0.0", port=5000)
