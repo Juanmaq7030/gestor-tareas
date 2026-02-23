@@ -815,7 +815,6 @@ def sa_proyecto_nuevo(empresa_id):
     flash("Proyecto creado ✅", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
-
 @app.route("/sa/proyecto/<int:proyecto_id>/editar", methods=["POST"])
 @login_required
 @require_roles("superadmin")
@@ -823,14 +822,14 @@ def sa_proyecto_editar(proyecto_id):
     pd_ = proyectos_data()
     proyectos = pd_["proyectos"]
 
-    p = next((x for x in proyectos if int(x.get("id")) == int(proyecto_id)), None)
+    nombre = (request.form.get("nombre") or "").strip()
+    terminado = _bool(request.form.get("terminado"))
+
+    p = next((x for x in proyectos if x.get("id") == proyecto_id), None)
     if not p:
         abort(404)
 
-    empresa_id = p.get("empresa_id")
-
-    nombre = (request.form.get("nombre") or "").strip()
-    terminado = _bool(request.form.get("terminado"))
+    empresa_id = p.get("empresa_id")  # ✅ para volver a la empresa correcta
 
     if nombre:
         p["nombre"] = nombre
