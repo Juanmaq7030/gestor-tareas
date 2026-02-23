@@ -16,7 +16,7 @@ app.secret_key = os.getenv("SECRET_KEY", "CAMBIA-ESTO-EN-RENDER")
 
 # ================= RUTAS ABSOLUTAS (CRÍTICO PARA RENDER) =================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+DATA_DIR = os.getenv("DATA_DIR", os.path.join(BASE_DIR, "data"))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 
 os.makedirs(DATA_DIR, exist_ok=True)
