@@ -32,7 +32,6 @@
     .box{border:1px solid #eee; border-radius:12px; padding:12px; margin-top:10px;}
     .danger{background:#fff5f5; border-color:#ffd5d5;}
     .right-meta{margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
-    .help{background:#f1f7ff; border:1px solid #cfe2ff; border-radius:12px; padding:10px; margin-top:10px; color:#0b3d91;}
   </style>
 </head>
 <body>
@@ -68,6 +67,7 @@
       <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:12px 0;">
         <form method="GET" action="{{ url_for('sa_config') }}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <label style="font-weight:700;">Seleccionar empresa:</label>
+
           <select name="empresa_id" onchange="this.form.submit()" style="padding:10px; border-radius:10px; border:1px solid #ddd; min-width:280px;">
             {% for e in empresas %}
               <option value="{{ e.id }}" {% if empresa_sel and e.id == empresa_sel.id %}selected{% endif %}>
@@ -80,8 +80,8 @@
         {% if empresa_sel %}
           <div class="right-meta">
             <span style="color:#666;">
-              Usuarios: {{ usuarios_sel|length }}/{{ empresa_sel.licencia_max_usuarios }} ·
-              Proyectos: {{ proyectos_sel|length }}/{{ empresa_sel.licencia_max_proyectos }}
+              Usuarios: {{ (usuarios_sel|length) }}/{{ empresa_sel.licencia_max_usuarios }} ·
+              Proyectos: {{ (proyectos_sel|length) }}/{{ empresa_sel.licencia_max_proyectos }}
             </span>
           </div>
         {% endif %}
@@ -93,14 +93,17 @@
         </div>
       {% else %}
 
+        {# ✅ Jinja booleans: True/False #}
+        {% set empresa_activa = (empresa_sel.activa|default(True)) %}
+
         <!-- EMPRESA -->
-        <div class="box {% if empresa_sel.get('activa', true) == false %}danger{% endif %}">
+        <div class="box {% if empresa_activa == False %}danger{% endif %}">
           <div class="row" style="justify-content:space-between;">
             <div>
               <div><strong>Empresa:</strong> <span class="pill">ID {{ empresa_sel.id }}</span> {{ empresa_sel.nombre }}</div>
               <div class="mini">
                 Estado:
-                {% if empresa_sel.get('activa', true) %}
+                {% if empresa_activa %}
                   <strong>Activa</strong>
                 {% else %}
                   <strong>Inactiva</strong>
@@ -111,7 +114,7 @@
             <form class="row" method="POST" action="{{ url_for('sa_empresa_editar', empresa_id=empresa_sel.id) }}" style="min-width: 420px;">
               <input name="nombre" placeholder="Nombre empresa" value="{{ empresa_sel.nombre }}">
               <label class="mini w-auto">
-                <input type="checkbox" name="activa" {% if empresa_sel.get('activa', true) %}checked{% endif %}>
+                <input type="checkbox" name="activa" {% if empresa_activa %}checked{% endif %}>
                 Activa
               </label>
               <button class="btn primary w-auto" type="submit">Guardar</button>
@@ -126,16 +129,8 @@
               <strong>📁 Proyectos</strong>
               <div class="mini">Crear · Editar nombre · Terminar · Eliminar</div>
 
-              <!-- ✅ INSTRUCCIÓN CLARA: PROYECTOS ASOCIADOS A LA EMPRESA SELECCIONADA -->
-              <div class="help">
-                <strong>Empresa seleccionada:</strong> {{ empresa_sel.nombre }} (ID {{ empresa_sel.id }}).<br>
-                Todo lo que <strong>crees</strong>, <strong>edites</strong> o <strong>elimines</strong> aquí quedará asociado a esta empresa
-                y se reflejará en el selector de proyectos del tablero/planificador.
-              </div>
-
-              <!-- CREAR PROYECTO (asociado a empresa_sel) -->
               <form class="row" method="POST" action="{{ url_for('sa_proyecto_nuevo', empresa_id=empresa_sel.id) }}" style="margin-top:10px;">
-                <input name="nombre_proyecto" placeholder="Nombre del nuevo proyecto" required>
+                <input name="nombre_proyecto" placeholder="Nombre del nuevo proyecto">
                 <button class="btn primary w-auto" type="submit">➕ Crear</button>
               </form>
 
@@ -144,22 +139,21 @@
               {% endif %}
 
               {% for p in proyectos_sel %}
+                {% set p_terminado = (p.terminado|default(False)) %}
                 <div class="box" style="margin-top:10px;">
                   <div class="mini"><span class="pill">ID {{ p.id }}</span></div>
 
-                  <!-- EDITAR PROYECTO -->
                   <form class="row" method="POST" action="{{ url_for('sa_proyecto_editar', proyecto_id=p.id) }}" style="margin-top:10px;">
-                    <input name="nombre" placeholder="Nombre proyecto" value="{{ p.nombre }}" required>
+                    <input name="nombre" placeholder="Nombre proyecto" value="{{ p.nombre }}">
                     <label class="mini w-auto">
-                      <input type="checkbox" name="terminado" {% if p.get('terminado', false) %}checked{% endif %}>
+                      <input type="checkbox" name="terminado" {% if p_terminado %}checked{% endif %}>
                       Terminado
                     </label>
-                    <button class="btn primary w-auto" type="submit">💾 Guardar</button>
+                    <button class="btn primary w-auto" type="submit">Guardar</button>
                   </form>
 
-                  <!-- ELIMINAR PROYECTO -->
                   <form method="POST" action="{{ url_for('sa_proyecto_eliminar_post', proyecto_id=p.id) }}"
-                        onsubmit="return confirm('¿Eliminar este proyecto? También se borrará su archivo de tareas.');"
+                        onsubmit="return confirm('¿Eliminar proyecto y sus tareas?');"
                         style="margin-top:10px;">
                     <button class="btn red" type="submit">🗑 Eliminar proyecto</button>
                   </form>
@@ -173,13 +167,13 @@
               <div class="mini">Crear · Editar · Reset password · Eliminar</div>
 
               <form class="row" method="POST" action="{{ url_for('sa_usuario_nuevo', empresa_id=empresa_sel.id) }}" style="margin-top:10px;">
-                <input name="nombre" placeholder="Nombre" required>
-                <input name="correo" placeholder="Correo" type="email" required>
-                <select class="w-auto" name="rol" required>
+                <input name="nombre" placeholder="Nombre">
+                <input name="correo" placeholder="Correo" type="email">
+                <select class="w-auto" name="rol">
                   <option value="supervisor">supervisor</option>
                   <option value="ejecutor">ejecutor</option>
                 </select>
-                <input name="password" placeholder="Contraseña (mín 6)" type="text" required>
+                <input name="password" placeholder="Contraseña (mín 6)" type="text">
                 <button class="btn primary w-auto" type="submit">➕ Crear</button>
               </form>
 
@@ -192,9 +186,9 @@
                   <div class="mini"><span class="pill">ID {{ u.id }}</span> Rol: <strong>{{ u.rol }}</strong></div>
 
                   <form class="row" method="POST" action="{{ url_for('sa_usuario_editar', user_id=u.id) }}" style="margin-top:10px;">
-                    <input name="nombre" placeholder="Nombre" value="{{ u.nombre }}" required>
-                    <input name="correo" placeholder="Correo" value="{{ u.correo }}" required>
-                    <select class="w-auto" name="rol" required>
+                    <input name="nombre" placeholder="Nombre" value="{{ u.nombre }}">
+                    <input name="correo" placeholder="Correo" value="{{ u.correo }}">
+                    <select class="w-auto" name="rol">
                       <option value="supervisor" {% if u.rol=='supervisor' %}selected{% endif %}>supervisor</option>
                       <option value="ejecutor" {% if u.rol=='ejecutor' %}selected{% endif %}>ejecutor</option>
                       <option value="superadmin" {% if u.rol=='superadmin' %}selected{% endif %}>superadmin</option>
@@ -203,11 +197,13 @@
                   </form>
 
                   <form class="row" method="POST" action="{{ url_for('sa_usuario_reset_password', user_id=u.id) }}" style="margin-top:10px;">
-                    <input name="new_password" placeholder="Nueva contraseña (mín 6)" type="text" required>
+                    <input name="new_password" placeholder="Nueva contraseña (mín 6)" type="text">
                     <button class="btn orange w-auto" type="submit">🔑 Reset</button>
                   </form>
 
-                  <form method="POST" action="{{ url_for('sa_usuario_eliminar_post', user_id=u.id) }}" onsubmit="return confirm('¿Eliminar usuario?');" style="margin-top:10px;">
+                  <form method="POST" action="{{ url_for('sa_usuario_eliminar_post', user_id=u.id) }}"
+                        onsubmit="return confirm('¿Eliminar usuario?');"
+                        style="margin-top:10px;">
                     <button class="btn red" type="submit">🗑 Eliminar usuario</button>
                   </form>
                 </div>
@@ -217,7 +213,8 @@
 
           <div class="sep"></div>
 
-          <form method="POST" action="{{ url_for('sa_empresa_eliminar', empresa_id=empresa_sel.id) }}" onsubmit="return confirm('⚠️ Esto elimina empresa + proyectos + usuarios + tareas. ¿Continuar?');">
+          <form method="POST" action="{{ url_for('sa_empresa_eliminar', empresa_id=empresa_sel.id) }}"
+                onsubmit="return confirm('⚠️ Esto elimina empresa + proyectos + usuarios + tareas. ¿Continuar?');">
             <button class="btn red" type="submit">🧨 Eliminar EMPRESA completa</button>
             <div class="mini" style="margin-top:6px;">Esto borra en cascada: proyectos, usuarios y archivos tareas_*.json.</div>
           </form>
