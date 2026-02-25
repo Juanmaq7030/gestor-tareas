@@ -861,6 +861,120 @@ def sa_proyecto_editar(proyecto_id):
     flash("Proyecto actualizado.", "ok")
     return redirect(url_for("sa_config", empresa_id=empresa_id))
 
+@app.route("/sa/proyecto/nuevo-simple", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_proyecto_nuevo_simple():
+    # viene oculto en el form
+    empresa_id = request.form.get("empresa_id", "").strip()
+    nombre = (request.form.get("nombre_proyecto") or "").strip()
+
+    # validaciones robustas
+    try:
+        empresa_id_int = int(empresa_id)
+    except Exception:
+        flash("Empresa inválida.", "error")
+        return redirect(url_for("sa_config"))
+
+    if not nombre:
+        flash("Debes ingresar un nombre de proyecto.", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id_int))
+
+    ed = empresas_data()
+    empresa = next((e for e in ed["empresas"] if int(e.get("id")) == empresa_id_int), None)
+    if not empresa:
+        flash("Empresa no encontrada.", "error")
+        return redirect(url_for("sa_config"))
+
+    pd_ = proyectos_data()
+    proyectos = pd_.get("proyectos", [])
+
+    proyectos_emp = [p for p in proyectos if int(p.get("empresa_id", 0) or 0) == empresa_id_int]
+    max_proys = int(empresa.get("licencia_max_proyectos", 1) or 1)
+    if len(proyectos_emp) >= max_proys:
+        flash(f"Límite de proyectos alcanzado ({len(proyectos_emp)}/{max_proys}).", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id_int))
+
+    nuevo_id = _next_id(proyectos)
+    proyectos.append({
+        "id": nuevo_id,
+        "empresa_id": empresa_id_int,
+        "nombre": nombre,
+        "fecha_creacion": datetime.now().strftime("%Y-%m-%d"),
+        "terminado": False
+    })
+    pd_["proyectos"] = proyectos
+    _write_json(PROYECTOS_FILE, pd_)
+
+    save_tareas(nuevo_id, [], 1)
+    flash("Proyecto creado ✅", "ok")
+    return redirect(url_for("sa_config", empresa_id=empresa_id_int))
+
+
+@app.route("/sa/usuario/nuevo-simple", methods=["POST"])
+@login_required
+@require_roles("superadmin")
+def sa_usuario_nuevo_simple():
+    empresa_id = request.form.get("empresa_id", "").strip()
+    nombre = (request.form.get("nombre") or "").strip()
+    correo = (request.form.get("correo") or "").strip().lower()
+    password = request.form.get("password") or ""
+    rol = (request.form.get("rol") or "").strip().lower()
+
+    try:
+        empresa_id_int = int(empresa_id)
+    except Exception:
+        flash("Empresa inválida.", "error")
+        return redirect(url_for("sa_config"))
+
+    if not (nombre and correo and password and rol):
+        flash("Faltan datos para crear usuario.", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id_int))
+
+    if rol not in ("supervisor", "ejecutor"):
+        flash("Rol inválido (solo supervisor/ejecutor).", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id_int))
+
+    if len(password) < 6:
+        flash("La contraseña debe tener al menos 6 caracteres.", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id_int))
+
+    ed = empresas_data()
+    empresa = next((e for e in ed["empresas"] if int(e.get("id")) == empresa_id_int), None)
+    if not empresa:
+        flash("Empresa no encontrada.", "error")
+        return redirect(url_for("sa_config"))
+
+    ud = usuarios_data()
+    usuarios = ud.get("usuarios", [])
+
+    # licencia
+    usuarios_emp = [u for u in usuarios if int((u.get("empresa_id") or 0)) == empresa_id_int]
+    max_users = int(empresa.get("licencia_max_usuarios", 5) or 5)
+    if len(usuarios_emp) >= max_users:
+        flash(f"Límite de usuarios alcanzado ({len(usuarios_emp)}/{max_users}).", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id_int))
+
+    # correo único
+    if any((u.get("correo", "").strip().lower() == correo) for u in usuarios):
+        flash("Ese correo ya existe en otro usuario.", "error")
+        return redirect(url_for("sa_config", empresa_id=empresa_id_int))
+
+    nuevo_id = _next_id(usuarios)
+    usuarios.append({
+        "id": nuevo_id,
+        "nombre": nombre,
+        "correo": correo,
+        "password_hash": generate_password_hash(password),
+        "rol": rol,
+        "empresa_id": empresa_id_int
+    })
+    ud["usuarios"] = usuarios
+    _write_json(USUARIOS_FILE, ud)
+
+    flash("Usuario creado ✅", "ok")
+    return redirect(url_for("sa_config", empresa_id=empresa_id_int))
+
 
 @app.route("/sa/proyecto/<int:proyecto_id>/eliminar", methods=["POST"])
 @login_required
