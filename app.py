@@ -1332,9 +1332,6 @@ class Task(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-# Crear tablas automáticamente (para evitar “tabla no existe” en deploy)
-with app.app_context():
-    db.create_all()
 
 # ================= HELPERS =================
 def to_int(v, default=None):
