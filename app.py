@@ -2446,11 +2446,9 @@ def migrate_json_to_db():
     return redirect(url_for("sa_dashboard"))
 
 # ================= INIT =================
-@app.before_serving
-def _startup():
-    # Corre una vez por worker cuando Gunicorn inicia
+with app.app_context():
+    db.create_all()
     ensure_superadmin()
 
 if __name__ == "__main__":
-    ensure_superadmin()
     app.run(debug=True, host="0.0.0.0", port=5000)
