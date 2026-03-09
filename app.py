@@ -110,7 +110,6 @@ class Task(db.Model):
 # Crear tablas automáticamente (para evitar “tabla no existe” en deploy)
 with app.app_context():
     db.create_all()
-
 # ================= HELPERS =================
 def to_int(v, default=None):
     if v is None:
