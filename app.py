@@ -690,40 +690,53 @@ def sa_proyectos():
 def sa_empresa_nueva():
     if request.method == "POST":
         nombre_empresa = (request.form.get("nombre_empresa") or "").strip()
-        nombre_proyecto = (request.form.get("nombre_proyecto") or "Proyecto 1").strip()
-
-        correo_sup = (request.form.get("correo_supervisor") or "").strip()
-        pass_sup = request.form.get("pass_supervisor") or ""
-
-        correo_eje = (request.form.get("correo_ejecutor") or "").strip()
-        pass_eje = request.form.get("pass_ejecutor") or ""
 
         try:
-            max_users = int(request.form.get("licencia_max_usuarios") or 5)
+            max_users = int(request.form.get("licencia_max_usuarios") or 10)
         except ValueError:
-            max_users = 5
+            max_users = 10
 
         try:
-            max_proys = int(request.form.get("licencia_max_proyectos") or 1)
+            max_proys = int(request.form.get("licencia_max_proyectos") or 5)
         except ValueError:
-            max_proys = 1
+            max_proys = 5
 
-        if not (nombre_empresa and correo_sup and pass_sup and correo_eje and pass_eje):
-            flash("Faltan datos", "error")
-            return render_template("sa_empresa_nueva.html")
+        proyectos = [
+            request.form.get("nombre_proyecto_1", ""),
+            request.form.get("nombre_proyecto_2", ""),
+            request.form.get("nombre_proyecto_3", ""),
+            request.form.get("nombre_proyecto_4", ""),
+            request.form.get("nombre_proyecto_5", ""),
+        ]
+
+        supervisores = []
+        for i in range(1, 6):
+            supervisores.append({
+                "nombre": request.form.get(f"nombre_supervisor_{i}", ""),
+                "correo": request.form.get(f"correo_supervisor_{i}", ""),
+                "password": request.form.get(f"pass_supervisor_{i}", ""),
+                "rol": "supervisor"
+            })
+
+        ejecutores = []
+        for i in range(1, 6):
+            ejecutores.append({
+                "nombre": request.form.get(f"nombre_ejecutor_{i}", ""),
+                "correo": request.form.get(f"correo_ejecutor_{i}", ""),
+                "password": request.form.get(f"pass_ejecutor_{i}", ""),
+                "rol": "ejecutor"
+            })
 
         try:
-            crear_empresa_con_proyecto_y_roles(
-                nombre_empresa,
-                nombre_proyecto,
-                correo_sup,
-                pass_sup,
-                correo_eje,
-                pass_eje,
-                max_users,
-                max_proys
+            crear_empresa_full(
+                nombre_empresa=nombre_empresa,
+                proyectos_nombres=proyectos,
+                supervisores=supervisores,
+                ejecutores=ejecutores,
+                max_users=max_users,
+                max_proys=max_proys
             )
-            flash("Empresa creada con proyecto y roles (Supervisor/Ejecutor).", "ok")
+            flash("Empresa creada con proyectos y usuarios correctamente ✅", "ok")
             return redirect(url_for("sa_dashboard"))
         except Exception as e:
             flash(str(e), "error")
