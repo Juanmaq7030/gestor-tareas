@@ -497,14 +497,67 @@ def ensure_superadmin():
 
 
 # ================= CREACIÓN EMPRESA+PROYECTO+ROLES =================
-def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_sup, pass_sup, correo_eje, pass_eje, max_users=5, max_proys=1):
-    correo_sup = correo_sup.strip().lower()
-    correo_eje = correo_eje.strip().lower()
+def crear_empresa_full(nombre_empresa, proyectos_nombres, supervisores, ejecutores, max_users=10, max_proys=5):
+    nombre_empresa = (nombre_empresa or "").strip()
+    if not nombre_empresa:
+        raise ValueError("Debes ingresar el nombre de la empresa.")
 
-    if User.query.filter_by(correo=correo_sup).first():
-        raise ValueError("Correo supervisor ya existe")
-    if User.query.filter_by(correo=correo_eje).first():
-        raise ValueError("Correo ejecutor ya existe")
+    proyectos_limpios = []
+    for p in proyectos_nombres:
+        p2 = (p or "").strip()
+        if p2 and p2 not in proyectos_limpios:
+            proyectos_limpios.append(p2)
+
+    if not proyectos_limpios:
+        raise ValueError("Debes ingresar al menos un proyecto.")
+
+    usuarios_limpios = []
+    correos_vistos = set()
+
+    def normalizar_usuarios(lista, rol_esperado):
+        salida = []
+        for item in lista:
+            nombre = (item.get("nombre") or "").strip()
+            correo = (item.get("correo") or "").strip().lower()
+            password = item.get("password") or ""
+            rol = item.get("rol") or rol_esperado
+
+            if not nombre and not correo and not password:
+                continue
+
+            if not (nombre and correo and password):
+                raise ValueError(f"Faltan datos en un usuario de tipo {rol_esperado}.")
+
+            if len(password) < 6:
+                raise ValueError(f"La contraseña del usuario {correo} debe tener al menos 6 caracteres.")
+
+            if correo in correos_vistos:
+                raise ValueError(f"Correo duplicado en el formulario: {correo}")
+
+            if User.query.filter_by(correo=correo).first():
+                raise ValueError(f"El correo ya existe: {correo}")
+
+            correos_vistos.add(correo)
+            salida.append({
+                "nombre": nombre,
+                "correo": correo,
+                "password": password,
+                "rol": rol_esperado
+            })
+        return salida
+
+    sup_limpios = normalizar_usuarios(supervisores, "supervisor")
+    eje_limpios = normalizar_usuarios(ejecutores, "ejecutor")
+
+    total_usuarios = len(sup_limpios) + len(eje_limpios)
+    if total_usuarios == 0:
+        raise ValueError("Debes ingresar al menos un supervisor o un ejecutor.")
+
+    if len(proyectos_limpios) > int(max_proys):
+        raise ValueError(f"Solo puedes crear hasta {max_proys} proyectos.")
+
+    if total_usuarios > int(max_users):
+        raise ValueError(f"Solo puedes crear hasta {max_users} usuarios.")
 
     empresa = Company(
         nombre=nombre_empresa,
@@ -515,33 +568,25 @@ def crear_empresa_con_proyecto_y_roles(nombre_empresa, nombre_proyecto, correo_s
     db.session.add(empresa)
     db.session.flush()
 
-    proyecto = Project(
-        empresa_id=empresa.id,
-        nombre=nombre_proyecto,
-        terminado=False
-    )
-    db.session.add(proyecto)
-    db.session.flush()
+    for nombre_proyecto in proyectos_limpios:
+        db.session.add(Project(
+            empresa_id=empresa.id,
+            nombre=nombre_proyecto,
+            terminado=False
+        ))
 
-    sup = User(
-        nombre="Supervisor",
-        correo=correo_sup,
-        password_hash=generate_password_hash(pass_sup),
-        rol="supervisor",
-        empresa_id=empresa.id
-    )
-    eje = User(
-        nombre="Ejecutor",
-        correo=correo_eje,
-        password_hash=generate_password_hash(pass_eje),
-        rol="ejecutor",
-        empresa_id=empresa.id
-    )
+    for u in sup_limpios + eje_limpios:
+        db.session.add(User(
+            nombre=u["nombre"],
+            correo=u["correo"],
+            password_hash=generate_password_hash(u["password"]),
+            rol=u["rol"],
+            empresa_id=empresa.id,
+            activo=True
+        ))
 
-    db.session.add_all([sup, eje])
     db.session.commit()
-
-    return empresa.id, proyecto.id
+    return empresa.id
 
 
 # ================= RUTAS AUTH =================
