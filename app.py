@@ -662,63 +662,10 @@ def sa_proyectos():
 @app.route("/sa/empresa/nueva", methods=["GET", "POST"])
 @login_required
 @require_roles("superadmin")
-def sa_empresa_nueva():
-    if request.method == "POST":
-        nombre_empresa = (request.form.get("nombre_empresa") or "").strip()
-
-        try:
-            max_users = int(request.form.get("licencia_max_usuarios") or 10)
-        except ValueError:
-            max_users = 10
-
-        try:
-            max_proys = int(request.form.get("licencia_max_proyectos") or 5)
-        except ValueError:
-            max_proys = 5
-
-        proyectos = [
-            request.form.get("nombre_proyecto_1", ""),
-            request.form.get("nombre_proyecto_2", ""),
-            request.form.get("nombre_proyecto_3", ""),
-            request.form.get("nombre_proyecto_4", ""),
-            request.form.get("nombre_proyecto_5", ""),
-        ]
-
-        supervisores = []
-        for i in range(1, 6):
-            supervisores.append({
-                "nombre": request.form.get(f"nombre_supervisor_{i}", ""),
-                "correo": request.form.get(f"correo_supervisor_{i}", ""),
-                "password": request.form.get(f"pass_supervisor_{i}", ""),
-                "rol": "supervisor"
-            })
-
-        ejecutores = []
-        for i in range(1, 6):
-            ejecutores.append({
-                "nombre": request.form.get(f"nombre_ejecutor_{i}", ""),
-                "correo": request.form.get(f"correo_ejecutor_{i}", ""),
-                "password": request.form.get(f"pass_ejecutor_{i}", ""),
-                "rol": "ejecutor"
-            })
-
-        try:
-            crear_empresa_full(
-                nombre_empresa=nombre_empresa,
-                proyectos_nombres=proyectos,
-                supervisores=supervisores,
-                ejecutores=ejecutores,
-                max_users=max_users,
-                max_proys=max_proys
-            )
-            flash("Empresa creada con proyectos y usuarios correctamente ✅", "ok")
-            return redirect(url_for("sa_dashboard"))
-        except Exception as e:
-            flash(str(e), "error")
-            return render_template("sa_empresa_nueva.html")
-
-    return render_template("sa_empresa_nueva.html")
-
+crear_empresa_full(
+    nombre_empresa,
+    proyectos
+)
 
 # ================= SUPERADMIN: CONFIG PANEL (CRUD) =================
 @app.route("/sa/config")
