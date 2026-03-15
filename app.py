@@ -497,97 +497,72 @@ def ensure_superadmin():
 
 
 # ================= CREACIÓN EMPRESA+PROYECTO+ROLES =================
-def crear_empresa_full(nombre_empresa, proyectos_nombres, supervisores, ejecutores, max_users=10, max_proys=5):
-    nombre_empresa = (nombre_empresa or "").strip()
-    if not nombre_empresa:
-        raise ValueError("Debes ingresar el nombre de la empresa.")
+def crear_empresa_full(nombre_empresa, proyectos_nombres, max_users=10, max_proys=5):
 
-    proyectos_limpios = []
-    for p in proyectos_nombres:
-        p2 = (p or "").strip()
-        if p2 and p2 not in proyectos_limpios:
-            proyectos_limpios.append(p2)
-
-    if not proyectos_limpios:
-        raise ValueError("Debes ingresar al menos un proyecto.")
-
-    usuarios_limpios = []
-    correos_vistos = set()
-
-    def normalizar_usuarios(lista, rol_esperado):
-        salida = []
-        for item in lista:
-            nombre = (item.get("nombre") or "").strip()
-            correo = (item.get("correo") or "").strip().lower()
-            password = item.get("password") or ""
-            rol = item.get("rol") or rol_esperado
-
-            if not nombre and not correo and not password:
-                continue
-
-            if not (nombre and correo and password):
-                raise ValueError(f"Faltan datos en un usuario de tipo {rol_esperado}.")
-
-            if len(password) < 6:
-                raise ValueError(f"La contraseña del usuario {correo} debe tener al menos 6 caracteres.")
-
-            if correo in correos_vistos:
-                raise ValueError(f"Correo duplicado en el formulario: {correo}")
-
-            if User.query.filter_by(correo=correo).first():
-                raise ValueError(f"El correo ya existe: {correo}")
-
-            correos_vistos.add(correo)
-            salida.append({
-                "nombre": nombre,
-                "correo": correo,
-                "password": password,
-                "rol": rol_esperado
-            })
-        return salida
-
-    sup_limpios = normalizar_usuarios(supervisores, "supervisor")
-    eje_limpios = normalizar_usuarios(ejecutores, "ejecutor")
-
-    total_usuarios = len(sup_limpios) + len(eje_limpios)
-    if total_usuarios == 0:
-        raise ValueError("Debes ingresar al menos un supervisor o un ejecutor.")
-
-    if len(proyectos_limpios) > int(max_proys):
-        raise ValueError(f"Solo puedes crear hasta {max_proys} proyectos.")
-
-    if total_usuarios > int(max_users):
-        raise ValueError(f"Solo puedes crear hasta {max_users} usuarios.")
+    nombre_empresa = nombre_empresa.strip()
 
     empresa = Company(
         nombre=nombre_empresa,
         activa=True,
-        licencia_max_usuarios=int(max_users),
-        licencia_max_proyectos=int(max_proys),
+        licencia_max_usuarios=max_users,
+        licencia_max_proyectos=max_proys
     )
+
     db.session.add(empresa)
     db.session.flush()
 
-    for nombre_proyecto in proyectos_limpios:
-        db.session.add(Project(
-            empresa_id=empresa.id,
-            nombre=nombre_proyecto,
-            terminado=False
-        ))
+    # Crear proyectos
+    proyectos_creados = []
 
-    for u in sup_limpios + eje_limpios:
-        db.session.add(User(
-            nombre=u["nombre"],
-            correo=u["correo"],
-            password_hash=generate_password_hash(u["password"]),
-            rol=u["rol"],
+    for nombre in proyectos_nombres:
+        nombre = (nombre or "").strip()
+
+        if nombre:
+
+            p = Project(
+                empresa_id=empresa.id,
+                nombre=nombre,
+                terminado=False
+            )
+
+            db.session.add(p)
+            proyectos_creados.append(p)
+
+    # Crear supervisores
+    for i in range(1,6):
+
+        correo = f"supervisor{i}@{nombre_empresa.lower().replace(' ','')}.cl"
+
+        user = User(
+            nombre=f"Supervisor {i}",
+            correo=correo,
+            password_hash=generate_password_hash("123456"),
+            rol="supervisor",
             empresa_id=empresa.id,
             activo=True
-        ))
+        )
+
+        db.session.add(user)
+
+    # Crear ejecutores
+    for i in range(1,6):
+
+        correo = f"ejecutor{i}@{nombre_empresa.lower().replace(' ','')}.cl"
+
+        user = User(
+            nombre=f"Ejecutor {i}",
+            correo=correo,
+            password_hash=generate_password_hash("123456"),
+            rol="ejecutor",
+            empresa_id=empresa.id,
+            activo=True
+        )
+
+        db.session.add(user)
 
     db.session.commit()
-    return empresa.id
 
+    return empresa.id
 
 # ================= RUTAS AUTH =================
 @app.route("/login", methods=["GET", "POST"])
