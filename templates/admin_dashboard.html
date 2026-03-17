@@ -3,32 +3,42 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Super Admin - Dashboard</title>
+  <title>Super Admin · Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  {% include "_sa_nav.html" %}
+  <div class="container">
+    {% include "_sa_nav.html" %}
 
-  <h2>Super Administrador</h2>
-  <p>Bienvenido {{ session.get("nombre","Super Admin") }}</p>
+    <main>
+      <header style="margin-bottom: 20px;">
+        <h1 style="margin-bottom:6px;">Super Administrador</h1>
+        <p style="color:#6c757d;">Bienvenido {{ session.get("nombre","Super Admin") }}</p>
+      </header>
 
-  <h3>Resumen</h3>
-  {% if resumen and resumen|length > 0 %}
-    <table border="1" cellpadding="6" cellspacing="0">
-      <tr>
-        <th>Empresa</th>
-        <th># Proyectos</th>
-        <th># Usuarios</th>
-      </tr>
-      {% for r in resumen %}
-      <tr>
-        <td>{{ r.empresa.nombre }}</td>
-        <td>{{ r.n_proyectos }}</td>
-        <td>{{ r.n_usuarios }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  {% else %}
-    <p>No hay empresas aún. Crea una en “➕ Nueva Empresa”.</p>
-  {% endif %}
+      {% if resumen and resumen|length > 0 %}
+        <section class="stats-section">
+          <h2>Resumen de Empresas</h2>
+          <div class="stats-grid">
+            {% for r in resumen %}
+            <article class="stat-card">
+              <div class="stat-label">Empresa</div>
+              <div class="stat-value" style="font-size:22px;">{{ r.empresa.nombre }}</div>
+              <p style="margin-top:10px; color:#6c757d;">
+                Proyectos: <strong>{{ r.n_proyectos }}</strong><br>
+                Usuarios: <strong>{{ r.n_usuarios }}</strong>
+              </p>
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% else %}
+        <section class="stats-section">
+          <h2>Resumen de Empresas</h2>
+          <p class="no-tasks">No hay empresas aún. Crea una en “➕ Nueva Empresa”.</p>
+        </section>
+      {% endif %}
+    </main>
+  </div>
 </body>
 </html>
