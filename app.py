@@ -496,10 +496,14 @@ def ensure_superadmin():
     print(f"✅ Superadmin creado: {admin_email} (cámbialo)")
 
 
-# ================= CREACIÓN EMPRESA+PROYECTO+ROLES =================
-def crear_empresa_full(nombre_empresa, proyectos_nombres, max_users=10, max_proys=5):
-
-    nombre_empresa = nombre_empresa.strip()
+# ================= CREACIÓN EMPRESA+PROYECTO (sin usuarios) =================
+def crear_empresa_full(nombre_empresa, proyectos_nombres, max_users=5, max_proys=1):
+    """
+    Crea una empresa y sus proyectos iniciales.
+    No crea usuarios automáticamente: los usuarios se crean desde los formularios
+    del panel de configuración del superadmin.
+    """
+    nombre_empresa = (nombre_empresa or "").strip()
 
     empresa = Company(
         nombre=nombre_empresa,
@@ -511,57 +515,26 @@ def crear_empresa_full(nombre_empresa, proyectos_nombres, max_users=10, max_proy
     db.session.add(empresa)
     db.session.flush()
 
-    # Crear proyectos
+    # Crear proyectos respetando el máximo de la licencia
     proyectos_creados = []
-
     for nombre in proyectos_nombres:
+        if len(proyectos_creados) >= (empresa.licencia_max_proyectos or 1):
+            break
+
         nombre = (nombre or "").strip()
+        if not nombre:
+            continue
 
-        if nombre:
-
-            p = Project(
-                empresa_id=empresa.id,
-                nombre=nombre,
-                terminado=False
-            )
-
-            db.session.add(p)
-            proyectos_creados.append(p)
-
-    # Crear supervisores
-    for i in range(1,6):
-
-        correo = f"supervisor{i}@{nombre_empresa.lower().replace(' ','')}.cl"
-
-        user = User(
-            nombre=f"Supervisor {i}",
-            correo=correo,
-            password_hash=generate_password_hash("123456"),
-            rol="supervisor",
+        p = Project(
             empresa_id=empresa.id,
-            activo=True
+            nombre=nombre,
+            terminado=False
         )
 
-        db.session.add(user)
-
-    # Crear ejecutores
-    for i in range(1,6):
-
-        correo = f"ejecutor{i}@{nombre_empresa.lower().replace(' ','')}.cl"
-
-        user = User(
-            nombre=f"Ejecutor {i}",
-            correo=correo,
-            password_hash=generate_password_hash("123456"),
-            rol="ejecutor",
-            empresa_id=empresa.id,
-            activo=True
-        )
-
-        db.session.add(user)
+        db.session.add(p)
+        proyectos_creados.append(p)
 
     db.session.commit()
-
     return empresa.id
 
 # ================= RUTAS AUTH =================
@@ -662,10 +635,106 @@ def sa_proyectos():
 @app.route("/sa/empresa/nueva", methods=["GET", "POST"])
 @login_required
 @require_roles("superadmin")
-crear_empresa_full(
-    nombre_empresa,
-    proyectos
-)
+def sa_empresa_nueva():
+    # GET: mostrar formulario
+    if request.method == "GET":
+        return render_template("sa_empresa_nueva.html")
+
+    # POST: crear empresa + proyectos + (opcionalmente) usuarios iniciales
+    nombre_empresa = (request.form.get("nombre_empresa") or "").strip()
+    if not nombre_empresa:
+        flash("Debes ingresar un nombre de empresa.", "error")
+        return render_template("sa_empresa_nueva.html"), 200
+
+    licencia_max_usuarios = to_int(request.form.get("licencia_max_usuarios"), 5) or 5
+    licencia_max_proyectos = to_int(request.form.get("licencia_max_proyectos"), 1) or 1
+
+    # Recoger nombres de proyectos desde el formulario
+    proyectos = []
+    for i in range(1, licencia_max_proyectos + 1):
+        field_name = f"nombre_proyecto_{i}"
+        nombre_proy = (request.form.get(field_name) or "").strip()
+        if nombre_proy:
+            proyectos.append(nombre_proy)
+
+    if not proyectos:
+        flash("Debes ingresar al menos un proyecto.", "error")
+        return render_template("sa_empresa_nueva.html"), 200
+
+    # Crear empresa y proyectos
+    empresa_id = crear_empresa_full(
+        nombre_empresa,
+        proyectos,
+        max_users=licencia_max_usuarios,
+        max_proys=licencia_max_proyectos,
+    )
+
+    # Crear supervisores y ejecutores iniciales respetando la licencia de usuarios
+    empresa = db.session.get(Company, empresa_id)
+    max_users_total = int(empresa.licencia_max_usuarios or 5)
+    usuarios_creados = 0
+
+    def _maybe_crear_usuario(nombre, correo, password, rol):
+        nonlocal usuarios_creados
+        nombre = (nombre or "").strip()
+        correo = (correo or "").strip().lower()
+        password = password or ""
+
+        if not (nombre and correo and password):
+            return
+
+        if usuarios_creados >= max_users_total:
+            return
+
+        if User.query.filter_by(correo=correo).first():
+            # Correo duplicado, se omite silenciosamente
+            return
+
+        u = User(
+            nombre=nombre,
+            correo=correo,
+            password_hash=generate_password_hash(password),
+            rol=rol,
+            empresa_id=empresa_id,
+            activo=True,
+        )
+        db.session.add(u)
+        usuarios_creados += 1
+
+    # Supervisores
+    for i in range(1, 6):
+        _maybe_crear_usuario(
+            request.form.get(f"nombre_supervisor_{i}"),
+            request.form.get(f"correo_supervisor_{i}"),
+            request.form.get(f"pass_supervisor_{i}"),
+            "supervisor",
+        )
+        if usuarios_creados >= max_users_total:
+            break
+
+    # Ejecutores
+    if usuarios_creados < max_users_total:
+        for i in range(1, 6):
+            _maybe_crear_usuario(
+                request.form.get(f"nombre_ejecutor_{i}"),
+                request.form.get(f"correo_ejecutor_{i}"),
+                request.form.get(f"pass_ejecutor_{i}"),
+                "ejecutor",
+            )
+            if usuarios_creados >= max_users_total:
+                break
+
+    db.session.commit()
+
+    if usuarios_creados > max_users_total:
+        flash(
+            f"Se alcanzó el máximo de usuarios permitidos por la licencia "
+            f"({usuarios_creados}/{max_users_total}).",
+            "error",
+        )
+
+    flash("Empresa creada correctamente ✅", "ok")
+    return redirect(url_for("sa_config", empresa_id=empresa_id))
 
 # ================= SUPERADMIN: CONFIG PANEL (CRUD) =================
 @app.route("/sa/config")
