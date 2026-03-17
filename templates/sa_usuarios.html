@@ -3,30 +3,48 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Super Admin - Usuarios</title>
+  <title>Super Admin · Usuarios</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  {% include "_sa_nav.html" %}
+  <div class="container">
+    {% include "_sa_nav.html" %}
 
-  <h2>Usuarios</h2>
+    <main>
+      <header style="margin-bottom: 20px;">
+        <h1>Usuarios</h1>
+        <p style="color:#6c757d;">Listado de usuarios por empresa y rol.</p>
+      </header>
 
-  {% if usuarios and usuarios|length > 0 %}
-    <table border="1" cellpadding="6" cellspacing="0">
-      <tr>
-        <th>ID</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Empresa</th>
-      </tr>
-      {% for u in usuarios %}
-      <tr>
-        <td>{{ u.id }}</td>
-        <td>{{ u.nombre }}</td>
-        <td>{{ u.correo }}</td>
-        <td>{{ u.rol }}</td>
-        <td>{{ u.empresa_nombre }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  {% else %}
-    <p>No hay usuarios.</p>
-  {% endif %}
+      {% if usuarios and usuarios|length > 0 %}
+        <section class="stats-section">
+          <div class="stats-list">
+            {% for u in usuarios %}
+            <div class="stat-item">
+              <div class="stat-item-label">
+                <strong>{{ u.nombre }}</strong><br>
+                <span style="font-size:12px; color:#6c757d;">{{ u.correo }}</span>
+              </div>
+              <div class="stat-item-bar">
+                <div class="stat-item-fill" style="width: 60%;"></div>
+              </div>
+              <div class="stat-item-value" style="text-align:left;">
+                <div style="font-size:13px; color:#6c757d;">
+                  Rol: <strong>{{ u.rol }}</strong><br>
+                  Empresa: <strong>{{ u.empresa_nombre }}</strong><br>
+                  ID: <strong>{{ u.id }}</strong>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+      {% else %}
+        <section class="stats-section">
+          <p class="no-tasks">No hay usuarios registrados.</p>
+        </section>
+      {% endif %}
+    </main>
+  </div>
 </body>
 </html>
