@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -141,11 +141,11 @@
 
       <div style="margin-top:12px;">
         {% if user.rol == 'supervisor' %}
-          <a class="btn" href="{{ url_for('empresa_ir_proyecto', proyecto_id=item.proyecto.id) }}">
+          <a class="btn" href="{{ url_for('empresa_ir', proyecto_id=item.proyecto.id) }}">
             📊 Ir al Tablero
           </a>
         {% else %}
-          <a class="btn" href="{{ url_for('empresa_ir_proyecto', proyecto_id=item.proyecto.id) }}">
+          <a class="btn" href="{{ url_for('empresa_ir', proyecto_id=item.proyecto.id) }}">
             📋 Ir a Tareas
           </a>
         {% endif %}
