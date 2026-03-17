@@ -3,30 +3,48 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Super Admin - Empresas</title>
+  <title>Super Admin · Empresas</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  {% include "_sa_nav.html" %}
+  <div class="container">
+    {% include "_sa_nav.html" %}
 
-  <h2>Empresas</h2>
+    <main>
+      <header style="margin-bottom: 20px;">
+        <h1>Empresas</h1>
+        <p style="color:#6c757d;">Listado de todas las empresas registradas en el sistema.</p>
+      </header>
 
-  {% if empresas and empresas|length > 0 %}
-    <table border="1" cellpadding="6" cellspacing="0">
-      <tr>
-        <th>ID</th><th>Nombre</th><th>Fecha</th><th>Max usuarios</th><th>Max proyectos</th>
-      </tr>
-      {% for e in empresas %}
-      <tr>
-        <td>{{ e.id }}</td>
-        <td>{{ e.nombre }}</td>
-        <td>{{ e.fecha_creacion }}</td>
-        <td>{{ e.licencia_max_usuarios }}</td>
-        <td>{{ e.licencia_max_proyectos }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  {% else %}
-    <p>No hay empresas.</p>
-  {% endif %}
+      {% if empresas and empresas|length > 0 %}
+        <section class="stats-section">
+          <div class="stats-list">
+            {% for e in empresas %}
+            <div class="stat-item">
+              <div class="stat-item-label">
+                <strong>{{ e.nombre }}</strong><br>
+                <span style="font-size:12px; color:#6c757d;">ID {{ e.id }}</span>
+              </div>
+              <div class="stat-item-bar">
+                <div class="stat-item-fill" style="width: 100%; opacity:.25;"></div>
+              </div>
+              <div class="stat-item-value" style="text-align:left;">
+                <div style="font-size:13px; color:#6c757d;">
+                  Max usuarios: <strong>{{ e.licencia_max_usuarios }}</strong><br>
+                  Max proyectos: <strong>{{ e.licencia_max_proyectos }}</strong><br>
+                  Creada: <strong>{{ e.fecha_creacion }}</strong>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+      {% else %}
+        <section class="stats-section">
+          <p class="no-tasks">No hay empresas creadas.</p>
+        </section>
+      {% endif %}
+    </main>
+  </div>
 </body>
 </html>
