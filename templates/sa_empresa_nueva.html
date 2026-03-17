@@ -1,108 +1,123 @@
-<!DOCTYPE html>
+DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Crear Nueva Empresa</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 30px; }
-        h1, h2, h3 { margin-top: 25px; }
-        .bloque { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        label { font-weight: bold; display: block; margin-bottom: 4px; }
-        input { width: 100%; padding: 8px; margin-bottom: 10px; }
-        button { padding: 12px 20px; font-size: 16px; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Super Admin · Nueva Empresa</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+<div class="container">
+    {% include "_sa_nav.html" %}
 
-    <h1>➕ Crear Nueva Empresa</h1>
+    <main>
+        <header style="margin-bottom: 20px;">
+            <h1>➕ Crear Nueva Empresa</h1>
+            <p style="color:#6c757d;">Configura la empresa, su licencia, proyectos iniciales y usuarios clave.</p>
+        </header>
 
-    <form method="POST">
-        <div class="bloque">
-            <h2>Empresa</h2>
-            <label>Nombre Empresa</label>
-            <input type="text" name="nombre_empresa" required>
-
-            <div class="grid">
-                <div>
-                    <label>Máx. Usuarios</label>
-                    <input type="number" name="licencia_max_usuarios" value="10">
+        <form method="POST" class="form-section">
+            <section class="stats-section" style="margin-bottom:20px;">
+                <h2>Empresa</h2>
+                <div class="stats-list">
+                    <div class="stat-item" style="border-bottom:none;">
+                        <div class="stat-item-label" style="min-width:180px;">
+                            <label for="nombre_empresa"><strong>Nombre Empresa</strong></label>
+                        </div>
+                        <div style="flex:1;">
+                            <input id="nombre_empresa" type="text" name="nombre_empresa" required
+                                   class="task-input" placeholder="Ej: Empresa Demo SpA">
+                        </div>
+                    </div>
+                    <div class="stat-item" style="border-bottom:none; flex-wrap:wrap; gap:18px;">
+                        <div class="stat-item-label" style="min-width:180px;">
+                            <strong>Licencia</strong>
+                        </div>
+                        <div style="display:flex; gap:14px; flex-wrap:wrap; flex:1;">
+                            <div style="min-width:180px;">
+                                <label for="licencia_max_usuarios" style="font-size:13px; font-weight:600;">Máx. Usuarios (licencia)</label>
+                                <input id="licencia_max_usuarios" type="number" name="licencia_max_usuarios"
+                                       value="5" min="1" class="task-input">
+                            </div>
+                            <div style="min-width:180px;">
+                                <label for="licencia_max_proyectos" style="font-size:13px; font-weight:600;">Máx. Proyectos (licencia)</label>
+                                <input id="licencia_max_proyectos" type="number" name="licencia_max_proyectos"
+                                       value="1" min="1" class="task-input">
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label>Máx. Proyectos</label>
-                    <input type="number" name="licencia_max_proyectos" value="5">
+            </section>
+
+            <section class="stats-section" style="margin-bottom:20px;">
+                <h2>Proyectos Iniciales</h2>
+                <div class="stats-list">
+                    {% for i in range(1,6) %}
+                    <div class="stat-item" {% if i == 5 %}style="border-bottom:none;"{% endif %}>
+                        <div class="stat-item-label" style="min-width:150px;">
+                            <label for="nombre_proyecto_{{ i }}"><strong>Proyecto {{ i }}</strong></label>
+                        </div>
+                        <div style="flex:1;">
+                            <input id="nombre_proyecto_{{ i }}"
+                                   type="text"
+                                   name="nombre_proyecto_{{ i }}"
+                                   class="task-input"
+                                   {% if i == 1 %}required{% endif %}
+                                   placeholder="{% if i == 1 %}Proyecto principal{% else %}Opcional{% endif %}">
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
+            </section>
+
+            <section class="stats-section" style="margin-bottom:20px;">
+                <h2>Supervisores</h2>
+                <div class="stats-list">
+                    {% for i in range(1, 6) %}
+                    <div class="stat-item" {% if i == 5 %}style="border-bottom:none;"{% endif %}>
+                        <div class="stat-item-label" style="min-width:130px;">
+                            <strong>Supervisor {{ i }}</strong>
+                        </div>
+                        <div style="flex:1; display:flex; flex-wrap:wrap; gap:10px;">
+                            <input type="text" name="nombre_supervisor_{{ i }}" class="task-input"
+                                   placeholder="Nombre">
+                            <input type="email" name="correo_supervisor_{{ i }}" class="task-input"
+                                   placeholder="Correo">
+                            <input type="password" name="pass_supervisor_{{ i }}" class="task-input"
+                                   placeholder="Contraseña">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="stats-section">
+                <h2>Ejecutores</h2>
+                <div class="stats-list">
+                    {% for i in range(1, 6) %}
+                    <div class="stat-item" {% if i == 5 %}style="border-bottom:none;"{% endif %}>
+                        <div class="stat-item-label" style="min-width:130px;">
+                            <strong>Ejecutor {{ i }}</strong>
+                        </div>
+                        <div style="flex:1; display:flex; flex-wrap:wrap; gap:10px;">
+                            <input type="text" name="nombre_ejecutor_{{ i }}" class="task-input"
+                                   placeholder="Nombre">
+                            <input type="email" name="correo_ejecutor_{{ i }}" class="task-input"
+                                   placeholder="Correo">
+                            <input type="password" name="pass_ejecutor_{{ i }}" class="task-input"
+                                   placeholder="Contraseña">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
+                <button type="submit" class="btn-primary">Guardar Empresa Completa</button>
+                <a href="{{ url_for('sa_config') }}" class="btn-clear">Cancelar</a>
             </div>
-        </div>
-
-        <div class="bloque">
-            <h2>Proyectos</h2>
-            <label>Proyecto 1</label>
-            <input type="text" name="nombre_proyecto_1" required>
-
-            <label>Proyecto 2</label>
-            <input type="text" name="nombre_proyecto_2">
-
-            <label>Proyecto 3</label>
-            <input type="text" name="nombre_proyecto_3">
-
-            <label>Proyecto 4</label>
-            <input type="text" name="nombre_proyecto_4">
-
-            <label>Proyecto 5</label>
-            <input type="text" name="nombre_proyecto_5">
-        </div>
-
-        <div class="bloque">
-            <h2>Supervisores</h2>
-
-            {% for i in range(1, 6) %}
-            <h3>Supervisor {{ i }}</h3>
-            <div class="grid">
-                <div>
-                    <label>Nombre</label>
-                    <input type="text" name="nombre_supervisor_{{ i }}">
-                </div>
-                <div>
-                    <label>Correo</label>
-                    <input type="email" name="correo_supervisor_{{ i }}">
-                </div>
-            </div>
-            <label>Contraseña</label>
-            <input type="password" name="pass_supervisor_{{ i }}">
-            {% endfor %}
-        </div>
-
-        <div class="bloque">
-            <h2>Ejecutores</h2>
-
-            {% for i in range(1, 6) %}
-            <h3>Ejecutor {{ i }}</h3>
-            <div class="grid">
-                <div>
-                    <label>Nombre</label>
-                    <input type="text" name="nombre_ejecutor_{{ i }}">
-                </div>
-                <div>
-                    <label>Correo</label>
-                    <input type="email" name="correo_ejecutor_{{ i }}">
-                </div>
-            </div>
-            <label>Contraseña</label>
-            <input type="password" name="pass_ejecutor_{{ i }}">
-            {% endfor %}
-        </div>
-
-        <div style="margin-top:20px; display:flex; gap:10px;">
-
-    <button type="submit">
-        Guardar Empresa
-    </button>
-
-    <a href="{{ url_for('sa_dashboard') }}">
-        <button type="button">
-            Salir
-        </button>
-    </a>
-
+        </form>
+    </main>
 </div>
+</body>
+</html>
