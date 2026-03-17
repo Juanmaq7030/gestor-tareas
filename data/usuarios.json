@@ -1,0 +1,12 @@
+{
+  "usuarios": [
+    {
+      "id": 1,
+      "nombre": "Super Admin",
+      "correo": "admin@tuapp.cl",
+      "password_hash": "scrypt:32768:8:1$h94s8BZ6aAd4nVaa$b05d089a69482961b0a11144b45b602fdf73355342982e3f0bd7f95aa24258113721e31f7628091c5192a755d5183944a7154e12b18ce53067332eba00427e82",
+      "rol": "superadmin",
+      "empresa_id": null
+    }
+  ]
+}
