@@ -93,8 +93,16 @@
             {% endfor %}
         </div>
 
-        <button type="submit">Guardar Empresa Completa</button>
-    </form>
+        <div style="margin-top:20px; display:flex; gap:10px;">
 
-</body>
-</html>
+    <button type="submit">
+        Guardar Empresa
+    </button>
+
+    <a href="{{ url_for('sa_dashboard') }}">
+        <button type="button">
+            Salir
+        </button>
+    </a>
+
+</div>
