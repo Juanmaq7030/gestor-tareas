@@ -3,29 +3,47 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Super Admin - Proyectos</title>
+  <title>Super Admin · Proyectos</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  {% include "_sa_nav.html" %}
+  <div class="container">
+    {% include "_sa_nav.html" %}
 
-  <h2>Proyectos</h2>
+    <main>
+      <header style="margin-bottom: 20px;">
+        <h1>Proyectos</h1>
+        <p style="color:#6c757d;">Listado global de proyectos por empresa.</p>
+      </header>
 
-  {% if proyectos and proyectos|length > 0 %}
-    <table border="1" cellpadding="6" cellspacing="0">
-      <tr>
-        <th>ID</th><th>Nombre</th><th>Empresa</th><th>Fecha</th>
-      </tr>
-      {% for p in proyectos %}
-      <tr>
-        <td>{{ p.id }}</td>
-        <td>{{ p.nombre }}</td>
-        <td>{{ p.empresa_nombre }}</td>
-        <td>{{ p.fecha_creacion }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  {% else %}
-    <p>No hay proyectos.</p>
-  {% endif %}
+      {% if proyectos and proyectos|length > 0 %}
+        <section class="stats-section">
+          <div class="stats-list">
+            {% for p in proyectos %}
+            <div class="stat-item">
+              <div class="stat-item-label">
+                <strong>{{ p.nombre }}</strong><br>
+                <span style="font-size:12px; color:#6c757d;">Empresa: {{ p.empresa_nombre }}</span>
+              </div>
+              <div class="stat-item-bar">
+                <div class="stat-item-fill" style="width: 70%;"></div>
+              </div>
+              <div class="stat-item-value" style="text-align:left;">
+                <div style="font-size:13px; color:#6c757d;">
+                  ID: <strong>{{ p.id }}</strong><br>
+                  Creado: <strong>{{ p.fecha_creacion }}</strong>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+      {% else %}
+        <section class="stats-section">
+          <p class="no-tasks">No hay proyectos registrados.</p>
+        </section>
+      {% endif %}
+    </main>
+  </div>
 </body>
 </html>
