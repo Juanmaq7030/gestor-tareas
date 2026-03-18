@@ -1,0 +1,36 @@
+{
+  "AppName": "Gestor de Tareas",
+  "SharePointSite": "https://tuorganizacion.sharepoint.com",
+  "ListName": "Tareas",
+  "Columns": {
+    "Texto": "Text",
+    "Situacion": "Choice",
+    "Responsable": "User",
+    "CentroResponsabilidad": "Text",
+    "Plazo": "DateTime"
+  },
+  "Estados": [
+    "Pendiente",
+    "En Ejecución",
+    "Terminada",
+    "Lista Para Validar"
+  ]
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Objetivos & KPIs - Gestor de Tareas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Objetivos & KPIs</h1>
+            <nav>
+                <a href="{{ url_for('index') }}">Inicio</a>
+                <a href="{{ url_for('objetivos_view') }}">Objetivos & KPIs</a>
+                <a href="{{ url_for('tablero') }}">Tablero de Control</a>
+                <a href="{{ url_for('informe') }}">Informe</a>
+                <a href="{{ url_for('about') }}">Acerca de</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="form-section">
+                <h2>Crear Objetivo</h2>
+                <form action="{{ url_for('objetivos_agregar_route') }}" method="POST" class="task-form">
+                    <div class="form-row">
+                        <input type="text" name="nombre" placeholder="Nombre del objetivo" required class="task-input">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" name="empresa" placeholder="Empresa (opcional)" class="task-input">
+                        <input type="text" name="proyecto" placeholder="Proyecto (opcional)" class="task-input">
+                    </div>
+                    <div class="form-row">
+                        <input type="text" name="centros" placeholder="Centros (CSV) ej: DAE, Finanzas" class="task-input">
+                        <input type="text" name="responsable" placeholder="Responsable del objetivo" class="task-input">
+                    </div>
+                    <div class="form-row">
+                        <input type="date" name="fecha_inicio" class="task-input">
+                        <input type="date" name="fecha_fin" class="task-input">
+                        <select name="estado" class="task-input">
+                            <option value="Activo" selected>Activo</option>
+                            <option value="Cerrado">Cerrado</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <textarea name="descripcion" placeholder="Descripción (opcional)" class="task-input textarea-input"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <button type="submit" class="btn-primary">Crear Objetivo</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="objetivos-section">
+                <h2>Objetivos ({{ objetivos|length }})</h2>
+
+                {% if objetivos %}
+                    <div class="objetivos-grid">
+                        {% for obj in objetivos %}
+                        <div class="objetivo-card">
+                            <div class="objetivo-header">
+                                <div class="objetivo-title">
+                                    <span class="badge-objetivo">{{ obj.nombre }}</span>
+                                    <span class="badge badge-estado">{{ obj.estado }}</span>
+                                </div>
+                                <form action="{{ url_for('objetivos_eliminar_route', objetivo_id=obj.id) }}" method="POST">
+                                    <button type="submit" class="btn-danger" onclick="return confirm('¿Eliminar objetivo y sus KPIs? Las tareas quedarán sin objetivo.');">Eliminar</button>
+                                </form>
+                            </div>
+
+                            <div class="objetivo-meta">
+                                <div><strong>Empresa:</strong> {{ obj.empresa if obj.empresa else "—" }}</div>
+                                <div><strong>Proyecto:</strong> {{ obj.proyecto if obj.proyecto else "—" }}</div>
+                                <div><strong>Centros:</strong> {{ obj.centros|join(', ') if obj.centros else "—" }}</div>
+                                <div><strong>Responsable:</strong> {{ obj.responsable if obj.responsable else "—" }}</div>
+                                <div><strong>Fechas:</strong>
+                                    {{ obj.fecha_inicio if obj.fecha_inicio else "—" }} → {{ obj.fecha_fin if obj.fecha_fin else "—" }}
+                                </div>
+                            </div>
+
+                            {% if obj.descripcion %}
+                                <div class="objetivo-desc">{{ obj.descripcion }}</div>
+                            {% endif %}
+
+                            <div class="kpi-subsection">
+                                <h3>KPIs</h3>
+
+                                <form action="{{ url_for('kpi_agregar_route', objetivo_id=obj.id) }}" method="POST" class="kpi-form">
+                                    <div class="form-row">
+                                        <input type="text" name="nombre" placeholder="Nombre KPI" required class="task-input">
+                                        <input type="text" name="unidad" placeholder="Unidad ej: %, #, $" class="task-input">
+                                        <input type="number" step="0.01" name="meta" placeholder="Meta" class="task-input">
+                                    </div>
+                                    <div class="form-row">
+                                        <select name="modo" class="task-input" onchange="toggleAutoFields(this, '{{ obj.id }}')">
+                                            <option value="manual" selected>Manual</option>
+                                            <option value="auto">Automático (desde tareas)</option>
+                                        </select>
+                                        <select name="auto_tipo" class="task-input kpi-auto-{{ obj.id }}" style="display:none;">
+                                            {% for t in kpi_auto_tipos %}
+                                                <option value="{{ t }}">{{ t }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <input type="number" step="0.01" name="actual_manual" placeholder="Actual (manual)" class="task-input kpi-manual-{{ obj.id }}">
+                                        <button type="submit" class="btn-primary">Agregar KPI</button>
+                                    </div>
+                                </form>
+
+                                {% set kpis_obj = kpis_por_obj.get(obj.id, []) %}
+                                {% if kpis_obj %}
+                                    <div class="kpi-grid">
+                                        {% for k in kpis_obj %}
+                                        <div class="kpi-card kpi-{{ k.estado_kpi }}">
+                                            <div class="kpi-title">{{ k.nombre }}</div>
+                                            <div class="kpi-values">
+                                                <div class="kpi-actual">
+                                                    {{ "%.2f"|format(k.actual) if k.actual is not none else "—" }} {{ k.unidad }}
+                                                </div>
+                                                <div class="kpi-meta">
+                                                    Meta: {{ "%.2f"|format(k.meta) if k.meta is not none else "—" }} {{ k.unidad }}
+                                                </div>
+                                            </div>
+                                            <div class="kpi-actions">
+                                                {% if k.modo == 'manual' %}
+                                                <form action="{{ url_for('kpi_actualizar_route', kpi_id=k.id) }}" method="POST" class="kpi-edit-form">
+                                                    <input type="text" name="nombre" value="{{ k.nombre }}" class="kpi-mini">
+                                                    <input type="text" name="unidad" value="{{ k.unidad }}" class="kpi-mini">
+                                                    <input type="number" step="0.01" name="meta" value="{{ k.meta if k.meta is not none else '' }}" class="kpi-mini">
+                                                    <input type="number" step="0.01" name="actual_manual" value="{{ k.actual_manual if k.actual_manual is not none else '' }}" class="kpi-mini">
+                                                    <button type="submit" class="btn-update">Guardar</button>
+                                                </form>
+                                                {% else %}
+                                                <div class="kpi-badges">
+                                                    <span class="badge badge-auto">Auto</span>
+                                                    <span class="badge badge-auto">{{ k.auto_tipo }}</span>
+                                                </div>
+                                                {% endif %}
+                                                <form action="{{ url_for('kpi_eliminar_route', kpi_id=k.id) }}" method="POST">
+                                                    <button type="submit" class="btn-danger btn-danger-sm" onclick="return confirm('¿Eliminar KPI?');">Eliminar</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="no-tasks">Sin KPIs todavía.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="no-tasks">Aún no hay objetivos. Crea uno arriba.</p>
+                {% endif %}
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Planificador de Tareas - Sistema de Gestión</p>
+        </footer>
+    </div>
+
+    <script>
+        function toggleAutoFields(selectEl, objId) {
+            const autoSel = document.querySelector('.kpi-auto-' + objId);
+            const manualInput = document.querySelector('.kpi-manual-' + objId);
+            const isAuto = selectEl.value === 'auto';
+            if (autoSel) autoSel.style.display = isAuto ? 'block' : 'none';
+            if (manualInput) manualInput.style.display = isAuto ? 'none' : 'block';
+        }
+    </script>
+</body>
+</html>
+
