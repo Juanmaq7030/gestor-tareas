@@ -1048,10 +1048,16 @@ def sa_usuario_eliminar_post(user_id):
 @no_cache
 def empresa_dashboard():
     u = current_user()
-    empresa = db.session.get(Company, int(u.get("empresa_id")))
+    empresa_id = to_int(u.get("empresa_id"))
+    if not empresa_id:
+        session.clear()
+        flash("Tu usuario no tiene empresa asignada. Contacta al administrador.", "error")
+        return redirect(url_for("login"))
+
+    empresa = db.session.get(Company, int(empresa_id))
 
     proys = Project.query.filter_by(
-        empresa_id=int(u.get("empresa_id")),
+        empresa_id=int(empresa_id),
         terminado=False
     ).order_by(Project.nombre.asc()).all()
 
@@ -1094,8 +1100,14 @@ def empresa_ir(proyecto_id):
 @no_cache
 def seleccionar_proyecto():
     u = current_user()
+    empresa_id = to_int(u.get("empresa_id"))
+    if not empresa_id:
+        session.clear()
+        flash("Tu usuario no tiene empresa asignada. Contacta al administrador.", "error")
+        return redirect(url_for("login"))
+
     proys = Project.query.filter_by(
-        empresa_id=int(u.get("empresa_id")),
+        empresa_id=int(empresa_id),
         terminado=False
     ).order_by(Project.nombre.asc()).all()
 
@@ -1123,11 +1135,12 @@ def proyecto_index(proyecto_id):
     tareas, _ = load_tareas(proyecto_id)
     u = current_user()
 
-    empresa = db.session.get(Company, int(u.get("empresa_id"))) if u.get("empresa_id") else None
+    empresa_id = to_int(u.get("empresa_id"))
+    empresa = db.session.get(Company, int(empresa_id)) if empresa_id else None
     empresa_nombre = empresa.nombre if empresa else ""
 
     proys = Project.query.filter_by(
-        empresa_id=int(u.get("empresa_id")),
+        empresa_id=int(empresa_id or 0),
         terminado=False
     ).order_by(Project.nombre.asc()).all()
 
@@ -1224,11 +1237,12 @@ def proyecto_tablero(proyecto_id):
     plazo_filtro = request.args.get('plazo', 'Todos')
 
     u = current_user()
-    empresa = db.session.get(Company, int(u.get("empresa_id"))) if u.get("empresa_id") else None
+    empresa_id = to_int(u.get("empresa_id"))
+    empresa = db.session.get(Company, int(empresa_id)) if empresa_id else None
     empresa_nombre = empresa.nombre if empresa else ""
 
     proys = Project.query.filter_by(
-        empresa_id=int(u.get("empresa_id")),
+        empresa_id=int(empresa_id or 0),
         terminado=False
     ).order_by(Project.nombre.asc()).all()
 
