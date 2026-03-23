@@ -1114,6 +1114,21 @@ def seleccionar_proyecto():
     return render_template("seleccionar_proyecto.html", proyectos=proys_out, user=u)
 
 
+@app.route("/seleccionar-proyecto/<int:proyecto_id>", methods=["POST"])
+@login_required
+@require_roles("supervisor", "ejecutor")
+def seleccionar_proyecto_post(proyecto_id):
+    """Compatibilidad con formulario del selector de proyectos."""
+    u = current_user()
+    if not user_can_access_project(u, proyecto_id):
+        abort(403)
+
+    set_active_project(proyecto_id)
+    if u.get("rol") == "supervisor":
+        return redirect(url_for("proyecto_tablero", proyecto_id=proyecto_id))
+    return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
+
+
 # ================= PROYECTO: PLANIFICADOR =================
 @app.route("/p/<int:proyecto_id>/")
 @login_required
