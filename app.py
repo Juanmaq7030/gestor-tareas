@@ -112,6 +112,46 @@ class Task(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class Objective(db.Model):
+    __tablename__ = "objectives"
+
+    id = db.Column(db.Integer, primary_key=True)
+    empresa_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=False, index=True)
+    proyecto_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False, index=True)
+
+    nombre = db.Column(db.String(250), nullable=False)
+    descripcion = db.Column(db.Text, default="")
+    centros = db.Column(db.JSON, default=list)
+    responsable = db.Column(db.String(200), default="")
+    estado = db.Column(db.String(50), default="Activo")
+    fecha_inicio = db.Column(db.String(20), default="")
+    fecha_fin = db.Column(db.String(20), default="")
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("proyecto_id", "nombre", name="uq_objective_project_nombre"),
+    )
+
+
+class KPI(db.Model):
+    __tablename__ = "kpis"
+
+    id = db.Column(db.Integer, primary_key=True)
+    objetivo_id = db.Column(db.Integer, db.ForeignKey("objectives.id"), nullable=False, index=True)
+
+    nombre = db.Column(db.String(250), nullable=False)
+    unidad = db.Column(db.String(50), default="")
+    meta = db.Column(db.Float, nullable=True)
+    modo = db.Column(db.String(20), default="manual")
+    auto_tipo = db.Column(db.String(50), nullable=True)
+    actual_manual = db.Column(db.Float, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ================= HELPERS =================
 def to_int(v, default=None):
     if v is None:
@@ -411,7 +451,7 @@ def obtener_estadisticas(tareas_filtradas, estados=ESTADOS):
     }
 
 
-def filtrar_tareas(tareas, centro=None, responsable=None, estado=None, plazo=None):
+def filtrar_tareas(tareas, centro=None, responsable=None, estado=None, plazo=None, objetivo_id=None, objetivos_map=None):
     tareas_filtradas = list(tareas)
     hoy = datetime.now().date()
 
@@ -423,6 +463,17 @@ def filtrar_tareas(tareas, centro=None, responsable=None, estado=None, plazo=Non
 
     if estado and estado != 'Todos':
         tareas_filtradas = [t for t in tareas_filtradas if t.get('situacion') == estado]
+
+    if objetivo_id is not None and objetivo_id != 'Todos' and objetivos_map:
+        try:
+            oid = int(objetivo_id)
+            obj = objetivos_map.get(oid)
+            if obj:
+                centros = obj.get('centros') or []
+                if centros:
+                    tareas_filtradas = [t for t in tareas_filtradas if (t.get('centro_responsabilidad') or '') in centros]
+        except Exception:
+            pass
 
     if plazo and plazo != 'Todos':
         if plazo == 'vencidas':
@@ -451,6 +502,95 @@ def filtrar_tareas(tareas, centro=None, responsable=None, estado=None, plazo=Non
             tareas_filtradas = [t for t in tareas_filtradas if not t.get('plazo')]
 
     return tareas_filtradas
+
+
+KPI_AUTO_TIPOS = [
+    'avance_completadas_pct',
+    'avance_validadas_pct',
+    'tareas_vencidas',
+    'tareas_total',
+]
+
+
+def objective_to_dict(o: Objective):
+    return {
+        'id': o.id,
+        'empresa_id': o.empresa_id,
+        'proyecto_id': o.proyecto_id,
+        'nombre': o.nombre,
+        'descripcion': o.descripcion or '',
+        'centros': o.centros or [],
+        'responsable': o.responsable or '',
+        'estado': o.estado or 'Activo',
+        'fecha_inicio': o.fecha_inicio or '',
+        'fecha_fin': o.fecha_fin or ''
+    }
+
+
+def calcular_kpi_actual(k: KPI, proyecto_id: int, objetivos_map: dict):
+    modo = (k.modo or 'manual')
+    if modo == 'manual':
+        return k.actual_manual
+
+    obj = objetivos_map.get(k.objetivo_id)
+    if not obj:
+        return None
+
+    centros = obj.get('centros') or []
+    tq = Task.query.filter_by(proyecto_id=int(proyecto_id))
+    tareas = [task_to_dict(t) for t in tq.all()]
+    if centros:
+        tareas = [t for t in tareas if (t.get('centro_responsabilidad') or '') in centros]
+
+    total = len(tareas)
+    if k.auto_tipo == 'tareas_total':
+        return float(total)
+
+    hoy = datetime.now().date()
+    if k.auto_tipo == 'tareas_vencidas':
+        vencidas = 0
+        for t in tareas:
+            plazo_str = t.get('plazo')
+            if not plazo_str:
+                continue
+            try:
+                plazo_date = datetime.strptime(plazo_str, '%Y-%m-%d').date()
+            except Exception:
+                continue
+            if t.get('situacion') in ('Completada', 'Validada'):
+                continue
+            if plazo_date < hoy:
+                vencidas += 1
+        return float(vencidas)
+
+    if total <= 0:
+        return 0.0
+
+    if k.auto_tipo == 'avance_completadas_pct':
+        return 100.0 * sum(1 for t in tareas if t.get('situacion') == 'Completada') / total
+    if k.auto_tipo == 'avance_validadas_pct':
+        return 100.0 * sum(1 for t in tareas if t.get('situacion') == 'Validada') / total
+
+    return None
+
+
+def kpi_to_dict(k: KPI, proyecto_id: int, objetivos_map: dict):
+    actual = calcular_kpi_actual(k, proyecto_id, objetivos_map)
+    estado_kpi = 'sin_meta'
+    if k.meta is not None and actual is not None:
+        estado_kpi = 'ok' if actual >= k.meta else 'bajo'
+    return {
+        'id': k.id,
+        'objetivo_id': k.objetivo_id,
+        'nombre': k.nombre,
+        'unidad': k.unidad or '',
+        'meta': k.meta,
+        'modo': k.modo or 'manual',
+        'auto_tipo': k.auto_tipo,
+        'actual_manual': k.actual_manual,
+        'actual': actual,
+        'estado_kpi': estado_kpi,
+    }
 
 
 # ================= SEED/RESET SUPERADMIN =================
@@ -1051,8 +1191,7 @@ def empresa_dashboard():
     empresa = db.session.get(Company, int(u.get("empresa_id")))
 
     proys = Project.query.filter_by(
-        empresa_id=int(u.get("empresa_id")),
-        terminado=False
+        empresa_id=int(u.get("empresa_id"))
     ).order_by(Project.nombre.asc()).all()
 
     avances = []
@@ -1095,8 +1234,7 @@ def empresa_ir(proyecto_id):
 def seleccionar_proyecto():
     u = current_user()
     proys = Project.query.filter_by(
-        empresa_id=int(u.get("empresa_id")),
-        terminado=False
+        empresa_id=int(u.get("empresa_id"))
     ).order_by(Project.nombre.asc()).all()
 
     if not proys:
@@ -1127,8 +1265,7 @@ def proyecto_index(proyecto_id):
     empresa_nombre = empresa.nombre if empresa else ""
 
     proys = Project.query.filter_by(
-        empresa_id=int(u.get("empresa_id")),
-        terminado=False
+        empresa_id=int(u.get("empresa_id"))
     ).order_by(Project.nombre.asc()).all()
 
     proyectos_usuario = [{"id": p.id, "nombre": p.nombre} for p in proys]
@@ -1222,24 +1359,29 @@ def proyecto_tablero(proyecto_id):
     responsable_filtro = request.args.get('responsable', 'Todos')
     estado_filtro = request.args.get('estado', 'Todos')
     plazo_filtro = request.args.get('plazo', 'Todos')
+    objetivo_filtro = request.args.get('objetivo', 'Todos')
 
     u = current_user()
     empresa = db.session.get(Company, int(u.get("empresa_id"))) if u.get("empresa_id") else None
     empresa_nombre = empresa.nombre if empresa else ""
 
     proys = Project.query.filter_by(
-        empresa_id=int(u.get("empresa_id")),
-        terminado=False
+        empresa_id=int(u.get("empresa_id"))
     ).order_by(Project.nombre.asc()).all()
 
     proyectos_usuario = [{"id": p.id, "nombre": p.nombre} for p in proys]
+
+    objetivos = [objective_to_dict(o) for o in Objective.query.filter_by(proyecto_id=int(proyecto_id)).order_by(Objective.id.asc()).all()]
+    objetivos_map = {o['id']: o for o in objetivos}
 
     tareas_filtradas = filtrar_tareas(
         tareas,
         centro=centro_filtro if centro_filtro != 'Todos' else None,
         responsable=responsable_filtro if responsable_filtro != 'Todos' else None,
         estado=estado_filtro if estado_filtro != 'Todos' else None,
-        plazo=plazo_filtro if plazo_filtro != 'Todos' else None
+        plazo=plazo_filtro if plazo_filtro != 'Todos' else None,
+        objetivo_id=objetivo_filtro,
+        objetivos_map=objetivos_map
     )
 
     estadisticas = obtener_estadisticas(tareas_filtradas)
@@ -1260,13 +1402,127 @@ def proyecto_tablero(proyecto_id):
             "centro": centro_filtro,
             "responsable": responsable_filtro,
             "estado": estado_filtro,
-            "plazo": plazo_filtro
+            "plazo": plazo_filtro,
+            "objetivo": objetivo_filtro
         },
+        objetivos=objetivos,
+        objetivos_map=objetivos_map,
+        kpis=[kpi_to_dict(k, int(proyecto_id), objetivos_map) for k in KPI.query.join(Objective, KPI.objetivo_id == Objective.id).filter(Objective.proyecto_id == int(proyecto_id)).order_by(KPI.id.asc()).all()],
         proyecto_id=proyecto_id,
         user=u,
         empresa_nombre=empresa_nombre,
         proyectos_usuario=proyectos_usuario
     )
+
+
+# ================= PROYECTO: OBJETIVOS + KPIs =================
+@app.route("/p/<int:proyecto_id>/objetivos")
+@login_required
+@require_project_access
+@no_cache
+def proyecto_objetivos(proyecto_id):
+    u = current_user()
+    empresa = db.session.get(Company, int(u.get("empresa_id"))) if u.get("empresa_id") else None
+    empresa_nombre = empresa.nombre if empresa else ""
+
+    proys = Project.query.filter_by(empresa_id=int(u.get("empresa_id"))).order_by(Project.nombre.asc()).all()
+    proyectos_usuario = [{"id": p.id, "nombre": p.nombre} for p in proys]
+
+    objetivos = [objective_to_dict(o) for o in Objective.query.filter_by(proyecto_id=int(proyecto_id)).order_by(Objective.id.asc()).all()]
+    objetivos_map = {o['id']: o for o in objetivos}
+    kpis = [kpi_to_dict(k, int(proyecto_id), objetivos_map) for k in KPI.query.join(Objective, KPI.objetivo_id == Objective.id).filter(Objective.proyecto_id == int(proyecto_id)).order_by(KPI.id.asc()).all()]
+    kpis_por_obj = {}
+    for k in kpis:
+        kpis_por_obj.setdefault(k['objetivo_id'], []).append(k)
+
+    return render_template(
+        "objetivos.html",
+        proyecto_id=proyecto_id,
+        user=u,
+        empresa_nombre=empresa_nombre,
+        proyectos_usuario=proyectos_usuario,
+        objetivos=objetivos,
+        kpis_por_obj=kpis_por_obj,
+        kpi_auto_tipos=KPI_AUTO_TIPOS
+    )
+
+
+@app.route("/p/<int:proyecto_id>/objetivos/agregar", methods=["POST"])
+@login_required
+@require_project_access
+def proyecto_objetivo_agregar(proyecto_id):
+    p = db.session.get(Project, int(proyecto_id))
+    if p:
+        nombre = (request.form.get("nombre") or "").strip()
+        if nombre:
+            centros_raw = request.form.get("centros", "")
+            centros = [c.strip() for c in (centros_raw or "").split(",") if c.strip()]
+            db.session.add(Objective(
+                empresa_id=p.empresa_id,
+                proyecto_id=p.id,
+                nombre=nombre,
+                descripcion=(request.form.get("descripcion") or "").strip(),
+                centros=centros,
+                responsable=(request.form.get("responsable") or "").strip(),
+                estado=(request.form.get("estado") or "Activo").strip(),
+                fecha_inicio=(request.form.get("fecha_inicio") or "").strip(),
+                fecha_fin=(request.form.get("fecha_fin") or "").strip(),
+            ))
+            db.session.commit()
+    return redirect(url_for("proyecto_objetivos", proyecto_id=proyecto_id))
+
+
+@app.route("/p/<int:proyecto_id>/objetivos/<int:objetivo_id>/eliminar", methods=["POST"])
+@login_required
+@require_project_access
+def proyecto_objetivo_eliminar(proyecto_id, objetivo_id):
+    Objective.query.filter_by(id=objetivo_id, proyecto_id=int(proyecto_id)).delete(synchronize_session=False)
+    KPI.query.filter_by(objetivo_id=objetivo_id).delete(synchronize_session=False)
+    db.session.commit()
+    return redirect(url_for("proyecto_objetivos", proyecto_id=proyecto_id))
+
+
+@app.route("/p/<int:proyecto_id>/kpi/agregar/<int:objetivo_id>", methods=["POST"])
+@login_required
+@require_project_access
+def proyecto_kpi_agregar(proyecto_id, objetivo_id):
+    obj = Objective.query.filter_by(id=objetivo_id, proyecto_id=int(proyecto_id)).first()
+    if obj:
+        try:
+            meta = float(request.form.get("meta")) if request.form.get("meta") not in (None, "") else None
+        except Exception:
+            meta = None
+        try:
+            actual_manual = float(request.form.get("actual_manual")) if request.form.get("actual_manual") not in (None, "") else None
+        except Exception:
+            actual_manual = None
+        modo = (request.form.get("modo") or "manual").strip()
+        auto_tipo = request.form.get("auto_tipo")
+        if modo not in ("manual", "auto"):
+            modo = "manual"
+        if auto_tipo not in KPI_AUTO_TIPOS:
+            auto_tipo = None
+
+        db.session.add(KPI(
+            objetivo_id=objetivo_id,
+            nombre=(request.form.get("nombre") or "").strip(),
+            unidad=(request.form.get("unidad") or "").strip(),
+            meta=meta,
+            modo=modo,
+            auto_tipo=auto_tipo if modo == "auto" else None,
+            actual_manual=actual_manual if modo == "manual" else None,
+        ))
+        db.session.commit()
+    return redirect(url_for("proyecto_objetivos", proyecto_id=proyecto_id))
+
+
+@app.route("/p/<int:proyecto_id>/kpi/<int:kpi_id>/eliminar", methods=["POST"])
+@login_required
+@require_project_access
+def proyecto_kpi_eliminar(proyecto_id, kpi_id):
+    KPI.query.filter_by(id=kpi_id).delete(synchronize_session=False)
+    db.session.commit()
+    return redirect(url_for("proyecto_objetivos", proyecto_id=proyecto_id))
 
 
 # ================= PROYECTO: INFORME =================
