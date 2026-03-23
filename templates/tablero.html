@@ -82,6 +82,16 @@
         <form method="GET" action="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}" class="filters-form">
           <div class="filter-row">
             <div class="filter-group">
+              <label for="objetivo">Objetivo:</label>
+              <select name="objetivo" id="objetivo" class="filter-select">
+                <option value="Todos" {% if filtros.objetivo == 'Todos' %}selected{% endif %}>Todos</option>
+                {% for obj in objetivos %}
+                  <option value="{{ obj.id }}" {% if filtros.objetivo == (obj.id|string) %}selected{% endif %}>{{ obj.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="filter-group">
               <label for="centro">Centro de Responsabilidad:</label>
               <select name="centro" id="centro" class="filter-select">
                 <option value="Todos" {% if filtros.centro == 'Todos' %}selected{% endif %}>Todos</option>
@@ -159,6 +169,21 @@
           </div>
         </div>
       </section>
+
+      {% if kpis %}
+      <section class="stats-section">
+        <h2>KPIs</h2>
+        <div class="stats-list">
+          {% for k in kpis %}
+          <div class="stat-item">
+            <span class="stat-item-label">{{ k.nombre }}</span>
+            <span class="stat-item-value">{{ "%.2f"|format(k.actual) if k.actual is not none else "—" }} {{ k.unidad }}</span>
+            <span class="stat-item-value">Meta: {{ "%.2f"|format(k.meta) if k.meta is not none else "—" }} {{ k.unidad }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
 
       <!-- Gráficos -->
       <section class="charts-section">

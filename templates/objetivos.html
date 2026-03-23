@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Objetivos y KPIs</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .card { background:#fff; border-radius:10px; padding:14px; margin:12px 0; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+    @media (max-width: 860px){ .grid, .grid-3 { grid-template-columns: 1fr; } }
+    input, select, textarea { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; }
+    textarea { min-height:70px; resize:vertical; }
+    .btn { padding:10px 14px; border:none; border-radius:8px; cursor:pointer; background:#2c7be5; color:#fff; font-weight:700; text-decoration:none; display:inline-block; }
+    .btn.secondary { background:#6c757d; }
+    .btn.danger { background:#dc3545; }
+    .obj-head { display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
+    .badge { display:inline-block; padding:3px 9px; border-radius:999px; font-size:12px; font-weight:700; }
+    .badge-ok { background:#d1e7dd; color:#0f5132; }
+    .badge-bajo { background:#ffe5d0; color:#8a4b12; }
+    .badge-sin { background:#e9ecef; color:#495057; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎯 Objetivos y KPIs</h1>
+      <nav style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <a href="{{ url_for('proyecto_index', proyecto_id=proyecto_id) }}">Inicio</a>
+        <a href="{{ url_for('proyecto_tablero', proyecto_id=proyecto_id) }}">Tablero</a>
+        <a href="{{ url_for('proyecto_objetivos', proyecto_id=proyecto_id) }}">Objetivos</a>
+        <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
+        <a href="{{ url_for('about') }}">Acerca de</a>
+        <div style="margin-left:auto;">🏢 <strong>{{ empresa_nombre }}</strong></div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Crear objetivo</h2>
+        <form method="POST" action="{{ url_for('proyecto_objetivo_agregar', proyecto_id=proyecto_id) }}">
+          <div class="grid">
+            <div><label>Nombre</label><input name="nombre" required></div>
+            <div><label>Responsable</label><input name="responsable"></div>
+          </div>
+          <div class="grid-3">
+            <div><label>Centros (CSV)</label><input name="centros" placeholder="DAE, Finanzas"></div>
+            <div><label>Fecha inicio</label><input type="date" name="fecha_inicio"></div>
+            <div><label>Fecha fin</label><input type="date" name="fecha_fin"></div>
+          </div>
+          <div class="grid">
+            <div><label>Estado</label><select name="estado"><option>Activo</option><option>Cerrado</option></select></div>
+            <div><label>Descripción</label><textarea name="descripcion"></textarea></div>
+          </div>
+          <div style="margin-top:10px;"><button class="btn" type="submit">Crear objetivo</button></div>
+        </form>
+      </section>
+
+      {% for obj in objetivos %}
+      <section class="card">
+        <div class="obj-head">
+          <h3 style="margin:0;">{{ obj.nombre }}</h3>
+          <form method="POST" action="{{ url_for('proyecto_objetivo_eliminar', proyecto_id=proyecto_id, objetivo_id=obj.id) }}" onsubmit="return confirm('¿Eliminar objetivo y sus KPIs?');">
+            <button class="btn danger" type="submit">Eliminar objetivo</button>
+          </form>
+        </div>
+        <p><strong>Responsable:</strong> {{ obj.responsable or '—' }} | <strong>Estado:</strong> {{ obj.estado }} | <strong>Centros:</strong> {{ obj.centros|join(', ') if obj.centros else '—' }}</p>
+        {% if obj.descripcion %}<p>{{ obj.descripcion }}</p>{% endif %}
+
+        <h4>Agregar KPI</h4>
+        <form method="POST" action="{{ url_for('proyecto_kpi_agregar', proyecto_id=proyecto_id, objetivo_id=obj.id) }}">
+          <div class="grid-3">
+            <div><input name="nombre" placeholder="Nombre KPI" required></div>
+            <div><input name="unidad" placeholder="Unidad (% / # / $)"></div>
+            <div><input type="number" step="0.01" name="meta" placeholder="Meta"></div>
+          </div>
+          <div class="grid-3" style="margin-top:8px;">
+            <div>
+              <select name="modo">
+                <option value="manual">Manual</option>
+                <option value="auto">Automático</option>
+              </select>
+            </div>
+            <div>
+              <select name="auto_tipo">
+                {% for t in kpi_auto_tipos %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+              </select>
+            </div>
+            <div><input type="number" step="0.01" name="actual_manual" placeholder="Actual manual"></div>
+          </div>
+          <div style="margin-top:10px;"><button class="btn secondary" type="submit">Agregar KPI</button></div>
+        </form>
+
+        <h4>KPIs</h4>
+        {% set lista = kpis_por_obj.get(obj.id, []) %}
+        {% if not lista %}<p>Sin KPIs aún.</p>{% endif %}
+        {% for k in lista %}
+          <div style="border-top:1px solid #eee; padding-top:8px; margin-top:8px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            <div>
+              <strong>{{ k.nombre }}</strong> — Actual: {{ '%.2f'|format(k.actual) if k.actual is not none else '—' }} {{ k.unidad }} | Meta: {{ '%.2f'|format(k.meta) if k.meta is not none else '—' }} {{ k.unidad }}
+              {% if k.estado_kpi == 'ok' %}<span class="badge badge-ok">OK</span>{% elif k.estado_kpi == 'bajo' %}<span class="badge badge-bajo">Bajo</span>{% else %}<span class="badge badge-sin">Sin meta</span>{% endif %}
+            </div>
+            <form method="POST" action="{{ url_for('proyecto_kpi_eliminar', proyecto_id=proyecto_id, kpi_id=k.id) }}" onsubmit="return confirm('¿Eliminar KPI?');">
+              <button class="btn danger" type="submit">Eliminar KPI</button>
+            </form>
+          </div>
+        {% endfor %}
+      </section>
+      {% endfor %}
+    </main>
+  </div>
+</body>
+</html>
