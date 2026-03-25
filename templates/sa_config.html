@@ -1,7 +1,84 @@
-<!-- PROYECTOS -->
-<div>
-  <strong>📁 Proyectos</strong>
-  <div class="mini">Crear · Editar nombre · Terminar · Eliminar</div>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Superadmin · Configuración</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="container">
+    {% include "_sa_nav.html" %}
+
+    <main>
+      <header style="margin-bottom:20px;">
+        <h1>Configuración</h1>
+        <p class="no-tasks" style="padding:0; font-style:normal;">
+          Administra empresas, proyectos y usuarios. Eliminar empresa borra también sus proyectos, usuarios y tareas.
+        </p>
+      </header>
+
+      <!-- EMPRESAS -->
+      <section class="filters-section">
+        <h2>Empresas</h2>
+
+        {% if not empresas or empresas|length == 0 %}
+          <p class="no-tasks">No hay empresas creadas.</p>
+        {% else %}
+          <form class="filters-form" method="GET" action="{{ url_for('sa_config') }}">
+            <div class="filter-row">
+              <div class="filter-group">
+                <label for="empresa_id">Seleccionar empresa:</label>
+                <select class="filter-select" name="empresa_id" id="empresa_id" onchange="this.form.submit()">
+                  {% for e in empresas %}
+                    <option value="{{ e.id }}" {% if empresa_sel and e.id == empresa_sel.id %}selected{% endif %}>
+                      {{ e.nombre }} (ID {{ e.id }})
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="filter-actions">
+                <a class="btn-clear" href="{{ url_for('sa_empresa_nueva') }}">➕ Crear empresa</a>
+              </div>
+            </div>
+          </form>
+        {% endif %}
+
+        {% if empresa_sel %}
+          <div class="stats-list" style="margin-top:16px;">
+            <div class="stat-item" style="border-bottom:none; padding-bottom:0;">
+              <div class="stat-item-label">
+                <strong>{{ empresa_sel.nombre }}</strong><br>
+                <span class="stat-percentage">ID {{ empresa_sel.id }}</span>
+              </div>
+              <div class="stat-item-bar"></div>
+              <div class="stat-item-value" style="min-width: 260px;">
+                <form method="POST" action="{{ url_for('sa_empresa_editar', empresa_id=empresa_sel.id) }}" class="update-form" style="gap:10px;">
+                  <input class="update-input" name="nombre" value="{{ empresa_sel.nombre }}" placeholder="Nombre empresa">
+                  <label class="mini" style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" name="activa" {% if empresa_sel.activa %}checked{% endif %}>
+                    Activa
+                  </label>
+                  <button class="btn-update" type="submit">Guardar</button>
+                </form>
+
+                <form method="POST"
+                      action="{{ url_for('sa_empresa_eliminar', empresa_id=empresa_sel.id) }}"
+                      onsubmit="return confirm('¿Eliminar la empresa {{ empresa_sel.nombre }}? Esto borra proyectos, usuarios y tareas asociadas.');"
+                      style="margin-top:10px;">
+                  <button class="btn-danger btn-danger-sm" type="submit">🗑 Eliminar empresa</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </section>
+
+      <section class="charts-section" style="grid-template-columns:1fr 1fr;">
+        <!-- PROYECTOS -->
+        <div class="chart-container">
+          <strong>📁 Proyectos</strong>
+          <div class="mini">Crear · Editar nombre · Terminar · Eliminar</div>
 
   <!-- ✅ NUEVO: input + Guardar (idéntico estilo simple) -->
   <form class="row" method="POST" action="{{ url_for('sa_proyecto_nuevo_simple') }}" style="margin-top:10px;">
@@ -33,12 +110,12 @@
       </form>
     </div>
   {% endfor %}
-</div>
+        </div>
 
-<!-- USUARIOS -->
-<div>
-  <strong>👤 Usuarios</strong>
-  <div class="mini">Crear · Editar · Reset password · Eliminar</div>
+        <!-- USUARIOS -->
+        <div class="chart-container">
+          <strong>👤 Usuarios</strong>
+          <div class="mini">Crear · Editar · Reset password · Eliminar</div>
 
   <!-- ✅ NUEVO: input(s) + Guardar (simple y robusto) -->
   <form class="row" method="POST" action="{{ url_for('sa_usuario_nuevo_simple') }}" style="margin-top:10px;">
@@ -87,11 +164,16 @@
       </form>
     </div>
   {% endfor %}
-</div>
+        </div>
+      </section>
 
-<!-- SALIR COMO SUPERADMIN -->
-<div style="margin-top:20px;">
-  <a href="{{ url_for('logout') }}" class="btn primary w-auto">
-    🚪 Salir y volver a iniciar sesión
-  </a>
-</div>
+      <!-- SALIR COMO SUPERADMIN -->
+      <div style="margin-top:20px;">
+        <a href="{{ url_for('logout') }}" class="btn primary w-auto">
+          🚪 Salir y volver a iniciar sesión
+        </a>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
