@@ -1,4 +1,4 @@
-DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -119,7 +119,10 @@ DOCTYPE html>
       </div>
     </div>
 
-    <div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      {% if user.rol == 'supervisor' %}
+        <a class="btn secondary" href="{{ url_for('empresa_calendario') }}" title="Google u Outlook por empresa">Calendario</a>
+      {% endif %}
       <a class="btn secondary" href="{{ url_for('logout') }}">Salir</a>
     </div>
   </header>

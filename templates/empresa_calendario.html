@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calendario · {{ empresa.nombre }}</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .cal-wrap { max-width: 720px; margin: 0 auto; }
+    .cal-card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    }
+    .cal-card h2 { margin-top: 0; }
+    .muted { color: #555; font-size: 14px; line-height: 1.5; }
+    .codebox {
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      background: #f4f6f8;
+      padding: 10px 12px;
+      border-radius: 8px;
+      word-break: break-all;
+      margin: 8px 0;
+    }
+    .flash-ok { background: #e8f7ee; color: #0d5c2e; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
+    .flash-err { background: #ffe8e8; color: #8a0000; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+    label { display: block; font-weight: 600; margin-top: 12px; margin-bottom: 4px; }
+    input[type=text], input[type=password], select {
+      width: 100%; max-width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+<div class="container cal-wrap">
+
+  <p><a href="{{ url_for('empresa_dashboard') }}">&larr; Volver al panel de empresa</a></p>
+
+  <div class="cal-card">
+    <h1>Conexión de calendario</h1>
+    <p class="muted">Empresa: <strong>{{ empresa.nombre }}</strong> · Supervisor: {{ user.nombre }}</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="{{ 'flash-err' if category == 'error' else 'flash-ok' }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% if connected %}
+      <p><span class="badge-estado" style="background:#2d8a54;color:#fff;padding:4px 10px;border-radius:6px;">Conectado</span>
+      Los tokens OAuth están guardados en el ERP.</p>
+    {% else %}
+      <p class="muted">Pendiente de autorizar con {{ empresa.calendar_provider if empresa.calendar_provider != 'none' else 'el proveedor elegido' }}.</p>
+    {% endif %}
+  </div>
+
+  <div class="cal-card">
+    <h2>1. Credenciales de la empresa (Google Cloud o Azure)</h2>
+    <p class="muted">Cada organización crea su propia aplicación OAuth y pega aquí el <strong>Client ID</strong> y el <strong>Client secret</strong>. El ERP los usa solo para esta empresa.</p>
+
+    <p class="muted"><strong>URLs de redirección</strong> que debe registrar la aplicación de la empresa:</p>
+    <div class="codebox">Google: {{ callback_google }}</div>
+    <div class="codebox">Microsoft: {{ callback_microsoft }}</div>
+    <p class="muted">URL base detectada: <code>{{ base_url_hint }}</code>. En Render, conviene fijar la variable de entorno <code>PUBLIC_BASE_URL</code> (por ejemplo <code>https://tu-servicio.onrender.com</code>) para que coincida siempre con la URL pública.</p>
+
+    <form method="post" action="{{ url_for('empresa_calendario') }}">
+      <label for="calendar_provider">Proveedor</label>
+      <select name="calendar_provider" id="calendar_provider">
+        <option value="none" {% if empresa.calendar_provider == 'none' %}selected{% endif %}>Sin calendario externo</option>
+        <option value="google" {% if empresa.calendar_provider == 'google' %}selected{% endif %}>Google Calendar</option>
+        <option value="microsoft" {% if empresa.calendar_provider == 'microsoft' %}selected{% endif %}>Microsoft 365 / Outlook</option>
+      </select>
+
+      <label for="oauth_client_id">Client ID (o Application ID)</label>
+      <input type="text" name="oauth_client_id" id="oauth_client_id" value="{{ empresa.calendar_oauth_client_id or '' }}" autocomplete="off">
+
+      <label for="oauth_client_secret">Client secret</label>
+      <input type="password" name="oauth_client_secret" id="oauth_client_secret" placeholder="{% if empresa.calendar_oauth_client_secret %}Dejar vacío para mantener el actual{% else %}Pegar el secret{% endif %}" autocomplete="off">
+
+      <label for="google_calendar_id">ID del calendario Google (opcional)</label>
+      <input type="text" name="google_calendar_id" id="google_calendar_id" value="{{ empresa.calendar_google_calendar_id or 'primary' }}" placeholder="primary">
+      <p class="muted">Suele ser <code>primary</code>. Si usan calendario compartido, peguen el ID del calendario.</p>
+
+      <label for="microsoft_tenant">Azure AD tenant ID</label>
+      <input type="text" name="microsoft_tenant" id="microsoft_tenant" value="{{ empresa.calendar_microsoft_tenant or 'common' }}" placeholder="common o GUID del inquilino">
+      <p class="muted">Use <code>common</code> para cuentas personales y varias organizaciones, o el ID del inquilino para una sola empresa.</p>
+
+      <div class="row-actions">
+        <button type="submit" class="btn-primary">Guardar configuración</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="cal-card">
+    <h2>2. Autorizar (OAuth)</h2>
+    <p class="muted">Tras guardar, el supervisor inicia sesión en Google o Microsoft y concede permisos de calendario.</p>
+    <div class="row-actions">
+      {% if empresa.calendar_provider == 'google' %}
+        <a class="btn-primary" href="{{ url_for('oauth_google_iniciar') }}" style="text-decoration:none;display:inline-block;">Conectar con Google</a>
+      {% elif empresa.calendar_provider == 'microsoft' %}
+        <a class="btn-primary" href="{{ url_for('oauth_microsoft_iniciar') }}" style="text-decoration:none;display:inline-block;">Conectar con Microsoft</a>
+      {% else %}
+        <span class="muted">Seleccione un proveedor y guarde la configuración.</span>
+      {% endif %}
+
+      {% if connected %}
+        <form method="post" action="{{ url_for('empresa_calendario_desconectar') }}" style="display:inline;" onsubmit="return confirm('¿Cerrar conexión con el calendario?');">
+          <button type="submit" class="btn-clear">Desconectar</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="cal-card">
+    <h2>Notas</h2>
+    <ul class="muted">
+      <li>Google: tipo de aplicación “Web”, consentimiento y URI de redirección autorizada exactamente como arriba.</li>
+      <li>Microsoft: registro de aplicación en Entra ID, plataforma Web con la misma URI de redirección; API delegada <code>Calendars.ReadWrite</code>.</li>
+      <li>La sincronización de eventos por tarea puede activarse en un siguiente paso usando los tokens guardados.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

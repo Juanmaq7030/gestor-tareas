@@ -23,6 +23,11 @@
     .badge-ok { background:#d1e7dd; color:#0f5132; }
     .badge-bajo { background:#ffe5d0; color:#8a4b12; }
     .badge-sin { background:#e9ecef; color:#495057; }
+    .empresa-chip { margin-left: auto; }
+    @media (max-width: 768px){
+      .empresa-chip { margin-left: 0; width: 100%; }
+      .btn { width: 100%; text-align: center; }
+    }
   </style>
 </head>
 <body>
@@ -35,7 +40,7 @@
         <a href="{{ url_for('proyecto_objetivos', proyecto_id=proyecto_id) }}">Objetivos</a>
         <a href="{{ url_for('proyecto_informe', proyecto_id=proyecto_id) }}">Informe</a>
         <a href="{{ url_for('about') }}">Acerca de</a>
-        <div style="margin-left:auto;">🏢 <strong>{{ empresa_nombre }}</strong></div>
+        <div class="empresa-chip">🏢 <strong>{{ empresa_nombre }}</strong></div>
       </nav>
     </header>
 

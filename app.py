@@ -5,13 +5,17 @@ from flask import (
 import os
 import time
 import json
+import secrets
+from urllib.parse import urlencode
+import requests
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from typing import Optional
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, text, inspect as sa_inspect
 
 # ================= APP =================
 app = Flask(__name__)
@@ -58,6 +62,16 @@ class Company(db.Model):
     licencia_max_proyectos = db.Column(db.Integer, default=1)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Calendario externo (credenciales OAuth por empresa: Google u Outlook / Microsoft 365)
+    calendar_provider = db.Column(db.String(20), default="none")  # none | google | microsoft
+    calendar_oauth_client_id = db.Column(db.Text, nullable=True)
+    calendar_oauth_client_secret = db.Column(db.Text, nullable=True)
+    calendar_google_calendar_id = db.Column(db.String(500), default="primary")
+    calendar_access_token = db.Column(db.Text, nullable=True)
+    calendar_refresh_token = db.Column(db.Text, nullable=True)
+    calendar_token_expires_at = db.Column(db.DateTime, nullable=True)
+    calendar_microsoft_tenant = db.Column(db.String(120), default="common")
 
 
 class Project(db.Model):
@@ -196,6 +210,90 @@ def company_to_dict(e):
         "licencia_max_usuarios": e.licencia_max_usuarios,
         "licencia_max_proyectos": e.licencia_max_proyectos
     }
+
+
+# -------- Calendario (OAuth por empresa) --------
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events"
+
+MS_SCOPES = "offline_access Calendars.ReadWrite"
+
+
+def public_app_base_url():
+    """URL pública del sitio (obligatoria en producción para OAuth)."""
+    u = (os.getenv("PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    if u:
+        return u
+    return request.url_root.rstrip("/")
+
+
+def calendar_callback_urls():
+    base = public_app_base_url()
+    return {
+        "google": f"{base}{url_for('oauth_google_callback')}",
+        "microsoft": f"{base}{url_for('oauth_microsoft_callback')}",
+    }
+
+
+def ensure_company_calendar_columns():
+    """Añade columnas de calendario si la tabla ya existía antes del cambio de modelo."""
+    try:
+        insp = sa_inspect(db.engine)
+        if not insp.has_table("companies"):
+            return
+        existing = {c["name"] for c in insp.get_columns("companies")}
+    except Exception:
+        return
+
+    alters = []
+    dialect = db.engine.dialect.name
+
+    def need(name):
+        return name not in existing
+
+    defs = [
+        ("calendar_provider", "VARCHAR(20) DEFAULT 'none'"),
+        ("calendar_oauth_client_id", "TEXT"),
+        ("calendar_oauth_client_secret", "TEXT"),
+        ("calendar_google_calendar_id", "VARCHAR(500) DEFAULT 'primary'"),
+        ("calendar_access_token", "TEXT"),
+        ("calendar_refresh_token", "TEXT"),
+        ("calendar_token_expires_at", "TIMESTAMP" if dialect != "sqlite" else "DATETIME"),
+        ("calendar_microsoft_tenant", "VARCHAR(120) DEFAULT 'common'"),
+    ]
+    for col, typedef in defs:
+        if need(col):
+            alters.append((col, typedef))
+
+    if not alters:
+        return
+
+    for col, typedef in alters:
+        try:
+            db.session.execute(text(f"ALTER TABLE companies ADD COLUMN {col} {typedef}"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+def company_calendar_connected(e: Company) -> bool:
+    return bool(e and (e.calendar_refresh_token or "").strip())
+
+
+def _company_for_calendar_user(u) -> Optional[Company]:
+    if not u or u.get("rol") != "supervisor":
+        return None
+    eid = u.get("empresa_id")
+    if not eid:
+        return None
+    return db.session.get(Company, int(eid))
+
+
+def _clear_calendar_tokens(e: Company):
+    e.calendar_access_token = None
+    e.calendar_refresh_token = None
+    e.calendar_token_expires_at = None
 
 
 def project_to_dict(p):
@@ -1226,6 +1324,258 @@ def empresa_ir(proyecto_id):
     return redirect(url_for("proyecto_index", proyecto_id=proyecto_id))
 
 
+# ================= CALENDARIO: credenciales OAuth por empresa =================
+@app.route("/empresa/calendario", methods=["GET", "POST"])
+@login_required
+@require_roles("supervisor")
+@no_cache
+def empresa_calendario():
+    u = current_user()
+    empresa = _company_for_calendar_user(u)
+    if not empresa:
+        abort(403)
+
+    if request.method == "POST":
+        prov = (request.form.get("calendar_provider") or "none").strip().lower()
+        if prov not in ("none", "google", "microsoft"):
+            prov = "none"
+        empresa.calendar_provider = prov
+        cid = (request.form.get("oauth_client_id") or "").strip()
+        csec = (request.form.get("oauth_client_secret") or "").strip()
+        empresa.calendar_oauth_client_id = cid or None
+        if csec:
+            empresa.calendar_oauth_client_secret = csec
+        gcal = (request.form.get("google_calendar_id") or "primary").strip() or "primary"
+        empresa.calendar_google_calendar_id = gcal
+        mst = (request.form.get("microsoft_tenant") or "common").strip() or "common"
+        empresa.calendar_microsoft_tenant = mst
+        db.session.commit()
+        flash(
+            "Configuración guardada. Registra las URLs de redirección en Google Cloud o Azure "
+            "y pulsa Conectar.",
+            "ok",
+        )
+        return redirect(url_for("empresa_calendario"))
+
+    cbs = calendar_callback_urls()
+    connected = company_calendar_connected(empresa)
+    return render_template(
+        "empresa_calendario.html",
+        user=u,
+        empresa=empresa,
+        callback_google=cbs["google"],
+        callback_microsoft=cbs["microsoft"],
+        connected=connected,
+        base_url_hint=public_app_base_url(),
+    )
+
+
+@app.route("/empresa/calendario/desconectar", methods=["POST"])
+@login_required
+@require_roles("supervisor")
+def empresa_calendario_desconectar():
+    u = current_user()
+    empresa = _company_for_calendar_user(u)
+    if not empresa:
+        abort(403)
+    _clear_calendar_tokens(empresa)
+    db.session.commit()
+    flash("Conexión con el calendario cerrada (tokens eliminados en el ERP).", "ok")
+    return redirect(url_for("empresa_calendario"))
+
+
+@app.route("/oauth/google/iniciar")
+@login_required
+@require_roles("supervisor")
+def oauth_google_iniciar():
+    u = current_user()
+    empresa = _company_for_calendar_user(u)
+    if not empresa:
+        abort(403)
+    if empresa.calendar_provider != "google":
+        flash("Elige Google Calendar y guarda Client ID y Client secret.", "error")
+        return redirect(url_for("empresa_calendario"))
+    if not (empresa.calendar_oauth_client_id or "").strip() or not (
+        empresa.calendar_oauth_client_secret or ""
+    ).strip():
+        flash("Faltan Client ID o Client secret de Google.", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    redirect_uri = calendar_callback_urls()["google"]
+    state = secrets.token_urlsafe(32)
+    session["cal_oauth"] = {
+        "state": state,
+        "company_id": empresa.id,
+        "provider": "google",
+    }
+    q = {
+        "client_id": empresa.calendar_oauth_client_id.strip(),
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": GOOGLE_CALENDAR_SCOPE,
+        "access_type": "offline",
+        "prompt": "consent",
+        "state": state,
+    }
+    return redirect(f"{GOOGLE_AUTH_URL}?{urlencode(q)}")
+
+
+@app.route("/oauth/google/callback")
+@login_required
+def oauth_google_callback():
+    u = current_user()
+    if not u or u.get("rol") != "supervisor":
+        flash("Solo supervisores pueden conectar el calendario.", "error")
+        return redirect(url_for("empresa_dashboard"))
+    err = request.args.get("error")
+    if err:
+        flash(f"Google no completó la autorización: {err}", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    cal = session.pop("cal_oauth", None)
+    code = request.args.get("code")
+    st = request.args.get("state")
+    if not cal or cal.get("provider") != "google" or not code or st != cal.get("state"):
+        flash("Sesión de autorización inválida o expirada. Intenta de nuevo.", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    empresa = _company_for_calendar_user(u)
+    if not empresa or empresa.id != cal.get("company_id"):
+        flash("La sesión no coincide con la empresa.", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    redirect_uri = calendar_callback_urls()["google"]
+    try:
+        r = requests.post(
+            GOOGLE_TOKEN_URL,
+            data={
+                "code": code,
+                "client_id": (empresa.calendar_oauth_client_id or "").strip(),
+                "client_secret": (empresa.calendar_oauth_client_secret or "").strip(),
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            },
+            timeout=45,
+        )
+        data = r.json()
+    except Exception as ex:
+        flash(f"Error al contactar Google: {ex}", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    if r.status_code != 200 or "access_token" not in data:
+        msg = data.get("error_description") or data.get("error") or (r.text or "")[:200]
+        flash(f"No se pudo obtener el token: {msg}", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    empresa.calendar_access_token = data.get("access_token")
+    empresa.calendar_refresh_token = data.get("refresh_token") or empresa.calendar_refresh_token
+    exp = data.get("expires_in")
+    if exp:
+        empresa.calendar_token_expires_at = datetime.utcnow() + timedelta(seconds=int(exp))
+    db.session.commit()
+    flash("Google Calendar conectado. Siguiente paso: sincronizar eventos desde las tareas.", "ok")
+    return redirect(url_for("empresa_calendario"))
+
+
+@app.route("/oauth/microsoft/iniciar")
+@login_required
+@require_roles("supervisor")
+def oauth_microsoft_iniciar():
+    u = current_user()
+    empresa = _company_for_calendar_user(u)
+    if not empresa:
+        abort(403)
+    if empresa.calendar_provider != "microsoft":
+        flash("Elige Microsoft 365 / Outlook y guarda el Client ID y el secret.", "error")
+        return redirect(url_for("empresa_calendario"))
+    if not (empresa.calendar_oauth_client_id or "").strip() or not (
+        empresa.calendar_oauth_client_secret or ""
+    ).strip():
+        flash("Faltan Client ID o Client secret de Microsoft.", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    tenant = (empresa.calendar_microsoft_tenant or "common").strip() or "common"
+    redirect_uri = calendar_callback_urls()["microsoft"]
+    state = secrets.token_urlsafe(32)
+    session["cal_oauth"] = {
+        "state": state,
+        "company_id": empresa.id,
+        "provider": "microsoft",
+    }
+    auth_base = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize"
+    q = {
+        "client_id": empresa.calendar_oauth_client_id.strip(),
+        "response_type": "code",
+        "redirect_uri": redirect_uri,
+        "response_mode": "query",
+        "scope": MS_SCOPES,
+        "state": state,
+        "prompt": "consent",
+    }
+    return redirect(f"{auth_base}?{urlencode(q)}")
+
+
+@app.route("/oauth/microsoft/callback")
+@login_required
+def oauth_microsoft_callback():
+    u = current_user()
+    if not u or u.get("rol") != "supervisor":
+        flash("Solo supervisores pueden conectar el calendario.", "error")
+        return redirect(url_for("empresa_dashboard"))
+    err = request.args.get("error")
+    if err:
+        desc = (request.args.get("error_description") or "")[:200]
+        flash(f"Microsoft no completó la autorización: {err} {desc}", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    cal = session.pop("cal_oauth", None)
+    code = request.args.get("code")
+    st = request.args.get("state")
+    if not cal or cal.get("provider") != "microsoft" or not code or st != cal.get("state"):
+        flash("Sesión de autorización inválida o expirada. Intenta de nuevo.", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    empresa = _company_for_calendar_user(u)
+    if not empresa or empresa.id != cal.get("company_id"):
+        flash("La sesión no coincide con la empresa.", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    tenant = (empresa.calendar_microsoft_tenant or "common").strip() or "common"
+    token_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
+    redirect_uri = calendar_callback_urls()["microsoft"]
+    try:
+        r = requests.post(
+            token_url,
+            data={
+                "client_id": (empresa.calendar_oauth_client_id or "").strip(),
+                "client_secret": (empresa.calendar_oauth_client_secret or "").strip(),
+                "code": code,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+                "scope": MS_SCOPES,
+            },
+            timeout=45,
+        )
+        data = r.json()
+    except Exception as ex:
+        flash(f"Error al contactar Microsoft: {ex}", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    if r.status_code != 200 or "access_token" not in data:
+        msg = data.get("error_description") or data.get("error") or (r.text or "")[:200]
+        flash(f"No se pudo obtener el token: {msg}", "error")
+        return redirect(url_for("empresa_calendario"))
+
+    empresa.calendar_access_token = data.get("access_token")
+    empresa.calendar_refresh_token = data.get("refresh_token") or empresa.calendar_refresh_token
+    exp = data.get("expires_in")
+    if exp:
+        empresa.calendar_token_expires_at = datetime.utcnow() + timedelta(seconds=int(exp))
+    db.session.commit()
+    flash("Microsoft 365 / Outlook conectado. Siguiente paso: sincronizar eventos desde las tareas.", "ok")
+    return redirect(url_for("empresa_calendario"))
+
+
 # ================= SELECCIONAR PROYECTO =================
 @app.route("/seleccionar-proyecto", methods=["GET"])
 @login_required
@@ -1549,6 +1899,8 @@ def proyecto_informe(proyecto_id):
     tareas, _ = load_tareas(proyecto_id)
     estadisticas = obtener_estadisticas(tareas)
     hoy = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    proyecto = _get_project(proyecto_id)
+    proyecto_nombre = (proyecto or {}).get("nombre", "Proyecto")
 
     tareas_vencidas = []
     limite = datetime.now().date() + timedelta(days=7)
@@ -1575,7 +1927,8 @@ def proyecto_informe(proyecto_id):
         tareas_por_vencer=tareas_por_vencer,
         fecha_reporte=hoy,
         estados=ESTADOS,
-        proyecto_id=proyecto_id
+        proyecto_id=proyecto_id,
+        proyecto_nombre=proyecto_nombre
     )
 
 
@@ -1672,6 +2025,7 @@ def migrate_json_to_db():
 # ================= INIT =================
 with app.app_context():
     db.create_all()
+    ensure_company_calendar_columns()
     ensure_superadmin()
 
 if __name__ == "__main__":
